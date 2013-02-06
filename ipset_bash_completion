@@ -24,11 +24,16 @@
 
 # -----------------------------------------------------------------
 #
+# Put it into ~/.bash_completion or /etc/bash_completion.d/
+#
+# -----------------------------------------------------------------
+#
 # Version 1.1
 #
 # -----------------------------------------------------------------
 
 _ipset_complete() {
+shopt -s extglob
 local cur prev
 local -i i=x=got_action=0
 local arr_sets=( $(ipset list -n ) ) arr_types=()
@@ -47,8 +52,8 @@ fi
 for i in ${!COMP_WORDS[@]}; do # check if we already have an action registered
 	if [[ ${COMP_WORDS[i]} = @(create|add|del|test|destroy|list|save|restore|flush|rename|swap|help|version) ]]; then
 		if [[ ${COMP_WORDS[i]} != save ]]; then
-				got_action=1
-				break
+			got_action=1
+			break
 		else
 			if [[ ${COMP_WORDS[i-1]} != -o ]]; then
 				got_action=1
