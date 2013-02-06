@@ -96,7 +96,7 @@ case "$cur" in
 					save|restore) COMPREPLY=( -\! -f -q )
 						break
 					;;
-					flush|rename|swap) COMPREPLY=( -q )
+					flush|rename|swap|test) COMPREPLY=( -q )
 						break
 					;;
 					help|version) COMPREPLY=()
@@ -130,7 +130,7 @@ case "$cur" in
 			COMPREPLY=( $( compgen -W 'create add del test destroy list save restore flush rename swap help version' $cur ) )
 		fi
 		case "$prev" in # depend on previous option
-			create|restore) COMPREPLY=() ;;
+			create|restore|version) COMPREPLY=() ;;
 			add|del|destroy|rename|save|swap|test) COMPREPLY=( $( compgen -W '${arr_sets[@]}' $cur ) ) ;;
 			list) COMPREPLY=( $( compgen -W '${arr_sets[@]}' $cur ) ) ;;
 			help) COMPREPLY=( $( compgen -W '${arr_types[@]}' $cur ) ) ;;
@@ -152,6 +152,9 @@ case "$cur" in
 										COMPREPLY=() # only list sets after the action command
 									fi
 								done
+								break
+							;;
+							swap) :
 								break
 							;;
 							*)
