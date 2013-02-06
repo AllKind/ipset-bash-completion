@@ -1,0 +1,200 @@
+#!/bin/bash
+
+# -----------------------------------------------------------------
+# Programmable completion code for ipset (netfilter.org)
+#
+# https://github.com/AllKind/ipset-bash-completion
+# https://sourceforge.net/projects/ipset-bashcompl
+# -----------------------------------------------------------------
+
+# Copyright (C) 2013 AllKind (AllKind@fastest.cc)
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+# -----------------------------------------------------------------
+#
+# Version 1.1
+#
+# -----------------------------------------------------------------
+
+_ipset_complete() {
+local cur prev
+local -i i=x=got_action=0
+local arr_sets=( $(ipset list -n ) ) arr_types=()
+
+COMPREPLY=()
+_get_comp_words_by_ref cur || return
+_get_comp_words_by_ref prev || return
+
+#DEBUG=Y
+if [[ $DEBUG ]]; then
+	printf "\ncur: <%s> prev: <%s>\n" "$cur" "$prev"
+	printf "COMP_WORDS:\n"
+	printf "<%s>\n" "${COMP_WORDS[@]}"
+fi
+
+for i in ${!COMP_WORDS[@]}; do # check if we already have an action registered
+	if [[ ${COMP_WORDS[i]} = @(create|add|del|test|destroy|list|save|restore|flush|rename|swap|help|version) ]]; then
+		if [[ ${COMP_WORDS[i]} != save ]]; then
+				got_action=1
+				break
+		else
+			if [[ ${COMP_WORDS[i-1]} != -o ]]; then
+				got_action=1
+				break
+			fi
+		fi
+	fi
+done
+
+if [[ $COMP_LINE = *@(help|create)* ]]; then i=0
+	while read -r; do # find supported set types and save them into an array
+		[[ $REPLY = "Supported set types:"* ]] && ((!i)) && i=1 && continue
+		((i)) || continue
+		if [[ $REPLY = *:* ]]; then
+			set -- $REPLY
+			arr_types[${#arr_types[@]}]="$1"
+		fi
+	done < <(ipset help)
+	for i in ${!arr_types[@]}; do # remove dupe entries
+		for ((x=i+1; x <= ${#arr_types[@]}; x++)); do
+			if [[ ${arr_types[i]} = ${arr_types[x]} ]]; then
+				unset arr_types[x]
+			fi
+		done
+	done
+fi
+
+case "$cur" in
+	-*) # any option is requested
+		if ((got_action)); then
+			COMPREPLY=( -\! -f -n -o -q -r -s -t )
+			for ((i=1; i <= ${#COMP_WORDS[@]}; i++)); do
+				case "${COMP_WORDS[i]}" in
+					create|add|del) COMPREPLY=( -\! -q )
+						break
+					;;
+					list) COMPREPLY=( -n -o -q -r -s -t  )
+						break
+					;;
+					save|restore) COMPREPLY=( -\! -f -q )
+						break
+					;;
+					flush|rename|swap) COMPREPLY=( -q )
+						break
+					;;
+					help|version) COMPREPLY=()
+						break
+					;;
+				esac
+			done
+		else
+			COMPREPLY=( - -\! -f -n -o -q -r -s -t )
+		fi
+		for ((i=1; i <= ${#COMP_WORDS[@]}; i++)); do
+			case "${COMP_WORDS[i]}" in
+				-o) if [[ $prev = -o ]]; then
+						COMPREPLY=()
+					elif [[ ${COMP_WORDS[i+1]} = save ]]; then
+						COMPREPLY=( -q -r -s )
+					else
+						COMPREPLY=( -q -r -s -t )
+					fi
+				;;
+				-n|-t) COMPREPLY=( ${COMP_WORDS[i]} -q $cur ) ;;
+				-r|-s) COMPREPLY=( -o -q -r -s ) ;;
+			esac
+		done
+		case "$prev" in
+			create|add|del|test|destroy|rename|swap) COMPREPLY=() ;; # -option not expected
+		esac
+	;;
+	*) # not an option
+		if ! ((got_action)); then
+			COMPREPLY=( $( compgen -W 'create add del test destroy list save restore flush rename swap help version' $cur ) )
+		fi
+		case "$prev" in # depend on previous option
+			create|restore) COMPREPLY=() ;;
+			add|del|destroy|rename|save|swap|test) COMPREPLY=( $( compgen -W '${arr_sets[@]}' $cur ) ) ;;
+			list) COMPREPLY=( $( compgen -W '${arr_sets[@]}' $cur ) ) ;;
+			help) COMPREPLY=( $( compgen -W '${arr_types[@]}' $cur ) ) ;;
+			-o) COMPREPLY=( $( compgen -W 'plain save xml' $cur ) ) ;;
+			*)
+				if ((got_action)); then
+					COMPREPLY=( $( compgen -W '${arr_sets[@]}' $cur ) )
+					for ((i=1; i <= ${#COMP_WORDS[@]}; i++)); do
+						case "${COMP_WORDS[i]}" in
+							create) COMPREPLY=()
+								if [[ ${COMP_WORDS[i+1]} = $prev ]]; then
+									COMPREPLY=( $( compgen -W '${arr_types[@]}' $cur ) )
+								fi
+								break
+							;;
+							add)
+								for ((x=${COMP_WORDS[i+1]}; x <= ${#COMP_WORDS[@]}; x++)); do
+									if [[ ${COMP_WORDS[x]} = $prev ]]; then
+										COMPREPLY=() # only list sets after the action command
+									fi
+								done
+								break
+							;;
+							*)
+								for x in ${!arr_sets[@]}; do
+									if [[ $prev = ${arr_sets[x]} ]]; then
+										COMPREPLY=() # list only one set
+										break
+									fi
+								done
+							;;
+						esac
+					done
+				else
+					for ((i=1; i <= ${#COMP_WORDS[@]}; i++)); do
+						case "${COMP_WORDS[i]}" in
+							-n|-o|-r|-s|-t) COMPREPLY=( $( compgen -W 'list' $cur ) )
+								break
+							;;
+							-q) COMPREPLY=( $( compgen -W 'create add del test destroy list save restore flush rename swap' $cur ) )
+								break
+							;;
+							-\!|-f) COMPREPLY=( $( compgen -W 'save restore' $cur ) )
+								break
+							;;
+						esac
+					done
+				fi
+			;;
+		esac
+	;;
+esac
+if ((${#COMPREPLY[@]})); then # post process the reply
+	for ((i=1; i <= ${#COMP_WORDS[@]}; i++)); do # remove dupe options
+		if [[ ${COMP_WORDS[i]} = @(""|-) ]]; then
+			continue
+		else
+			for x in ${!COMPREPLY[@]}; do
+				if [[ ${COMP_WORDS[i]} = ${COMPREPLY[x]} ]]; then
+					unset COMPREPLY[$x]
+					break
+				fi
+			done
+		fi
+	done
+fi
+if [[ $DEBUG ]]; then
+	printf "COMPREPLY:\n"
+	printf "<%s>\n" "${COMPREPLY[@]}"
+fi
+}
+complete -F _ipset_complete ipset
