@@ -28,7 +28,7 @@
 #
 # -----------------------------------------------------------------
 #
-# Version 1.3
+# Version 1.4
 #
 # -----------------------------------------------------------------
 
@@ -36,7 +36,7 @@ _ipset_complete() {
 shopt -s extglob
 local cur prev str_action
 local -i i=x=y=got_action=0
-local arr_sets=( $(ipset list -n ) ) arr_types=()
+local arr_sets=() arr_types=()
 
 COMPREPLY=()
 _get_comp_words_by_ref cur || return
@@ -83,16 +83,15 @@ fi
 
 case "$cur" in
 	-*) # any option is requested
-		if ((got_action)); then
-			COMPREPLY=( -\! -f -n -o -q -r -s -t )
-				case "$str_action" in
-					create|add|del) COMPREPLY=( -\! -q ) ;;
-					list) COMPREPLY=( -f -n -o -q -r -s -t  ) ;;
-					restore) COMPREPLY=( -\! -f -q ) ;;
-					save) COMPREPLY=( -f -q ) ;;
-					flush|rename|swap|test) COMPREPLY=( -q ) ;;
-					help|version) COMPREPLY=() ;;
-				esac
+		if ((got_action)); then COMPREPLY=( -\! -f -n -o -q -r -s -t )
+			case "$str_action" in
+				create|add|del) COMPREPLY=( -\! -q ) ;;
+				list) COMPREPLY=( -f -n -o -q -r -s -t  ) ;;
+				restore) COMPREPLY=( -\! -f -q ) ;;
+				save) COMPREPLY=( -f -q ) ;;
+				destroy|flush|rename|swap|test) COMPREPLY=( -q ) ;;
+				help|version) COMPREPLY=() ;;
+			esac
 		else
 			COMPREPLY=( - -\! -f -n -o -q -r -s -t )
 		fi
@@ -118,6 +117,8 @@ case "$cur" in
 	*) # not an option
 		if ! ((got_action)); then
 			COMPREPLY=( $( compgen -W 'create add del test destroy list save restore flush rename swap help version' $cur ) )
+		else
+			arr_sets=( $(ipset list -n ) )
 		fi
 		case "$prev" in # depend on previous option
 			create|restore|version) COMPREPLY=() ;;
@@ -154,7 +155,12 @@ case "$cur" in
 								done
 								break
 							;;
-							swap) :
+							swap)
+								for x in ${!arr_sets[@]}; do
+									if [[ ${arr_sets[x]} = ${COMP_WORDS[i+2]} ]]; then
+										COMPREPLY=() # only list two sets
+									fi
+								done
 								break
 							;;
 							*)
