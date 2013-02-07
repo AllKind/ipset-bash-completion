@@ -35,7 +35,7 @@
 _ipset_complete() {
 shopt -s extglob
 local cur prev str_action
-local -i i=x=got_action=0
+local -i i=x=y=got_action=0
 local arr_sets=( $(ipset list -n ) ) arr_types=()
 
 COMPREPLY=()
