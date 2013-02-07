@@ -116,7 +116,7 @@ case "$cur" in
 					elif [[ ${COMP_WORDS[i+1]} = save ]]; then
 						COMPREPLY=( -q -r -s )
 					else
-						COMPREPLY=( -q -r -s -t )
+						COMPREPLY=( -f -q -r -s -t )
 					fi
 				;;
 				-n|-t) COMPREPLY=( -f ${COMP_WORDS[i]} -q ) ;;
