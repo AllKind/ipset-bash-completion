@@ -28,13 +28,13 @@
 #
 # -----------------------------------------------------------------
 #
-# Version 1.1
+# Version 1.2
 #
 # -----------------------------------------------------------------
 
 _ipset_complete() {
 shopt -s extglob
-local cur prev
+local cur prev str_action
 local -i i=x=got_action=0
 local arr_sets=( $(ipset list -n ) ) arr_types=()
 
@@ -52,11 +52,11 @@ fi
 for i in ${!COMP_WORDS[@]}; do # check if we already have an action registered
 	if [[ ${COMP_WORDS[i]} = @(create|add|del|test|destroy|list|save|restore|flush|rename|swap|help|version) ]]; then
 		if [[ ${COMP_WORDS[i]} != save ]]; then
-			got_action=1
+			got_action=1 str_action=${COMP_WORDS[i]}
 			break
 		else
 			if [[ ${COMP_WORDS[i-1]} != -o ]]; then
-				got_action=1
+				got_action=1 str_action=${COMP_WORDS[i]}
 				break
 			fi
 		fi
@@ -90,10 +90,13 @@ case "$cur" in
 					create|add|del) COMPREPLY=( -\! -q )
 						break
 					;;
-					list) COMPREPLY=( -n -o -q -r -s -t  )
+					list) COMPREPLY=( -f -n -o -q -r -s -t  )
 						break
 					;;
-					save|restore) COMPREPLY=( -\! -f -q )
+					restore) COMPREPLY=( -\! -f -q )
+						break
+					;;
+					save) COMPREPLY=( -f -q )
 						break
 					;;
 					flush|rename|swap|test) COMPREPLY=( -q )
@@ -131,10 +134,20 @@ case "$cur" in
 		fi
 		case "$prev" in # depend on previous option
 			create|restore|version) COMPREPLY=() ;;
-			add|del|destroy|rename|save|swap|test) COMPREPLY=( $( compgen -W '${arr_sets[@]}' $cur ) ) ;;
+			add|del|destroy|rename|swap|test) COMPREPLY=( $( compgen -W '${arr_sets[@]}' $cur ) ) ;;
+			save)
+				if ((got_action)); then
+					COMPREPLY=( $( compgen -W '${arr_sets[@]}' $cur ) ) 
+				else
+					if [[ $COMP_LINE = *"-o save"* ]]; then
+						COMPREPLY=( $( compgen -W 'list' $cur ) )
+					fi
+				fi
+			;;
 			list) COMPREPLY=( $( compgen -W '${arr_sets[@]}' $cur ) ) ;;
 			help) COMPREPLY=( $( compgen -W '${arr_types[@]}' $cur ) ) ;;
 			-o) COMPREPLY=( $( compgen -W 'plain save xml' $cur ) ) ;;
+			-f) COMPREPLY=( $( compgen -f $cur ) ) ;;
 			*)
 				if ((got_action)); then
 					COMPREPLY=( $( compgen -W '${arr_sets[@]}' $cur ) )
@@ -159,10 +172,12 @@ case "$cur" in
 							;;
 							*)
 								for x in ${!arr_sets[@]}; do
-									if [[ $prev = ${arr_sets[x]} ]]; then
-										COMPREPLY=() # list only one set
-										break
-									fi
+									for ((y=1; y <= ${#COMP_WORDS[@]}; y++)); do
+										if [[ ${arr_sets[x]} = ${COMP_WORDS[y]} ]]; then
+											COMPREPLY=() # list only one set
+											break 2
+										fi
+									done
 								done
 							;;
 						esac
@@ -176,7 +191,10 @@ case "$cur" in
 							-q) COMPREPLY=( $( compgen -W 'create add del test destroy list save restore flush rename swap' $cur ) )
 								break
 							;;
-							-\!|-f) COMPREPLY=( $( compgen -W 'save restore' $cur ) )
+							-f) COMPREPLY=( $( compgen -W 'list save restore' $cur ) )
+								break
+							;;
+							-\!) COMPREPLY=( $( compgen -W 'create add del' $cur ) )
 								break
 							;;
 						esac
