@@ -23,20 +23,34 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 # -----------------------------------------------------------------
+# Tested with ipset versions:
+# 6.16.1
+# -----------------------------------------------------------------
 #
 # Put it into ~/.bash_completion or /etc/bash_completion.d/
 #
 # -----------------------------------------------------------------
 #
-# Version 1.4
+# Version 1.5
 #
 # -----------------------------------------------------------------
 
 _ipset_complete() {
 shopt -s extglob
-local cur prev str_action
+local cur prev str_action ips_version
 local -i i=x=y=got_action=0
 local arr_sets=() arr_types=()
+
+# ipset version check 6.x upwards (to v?) is supported
+ips_version="$(ipset --version)"
+ips_version="${ips_version#ipset v}"
+ips_version="${ips_version%%.*}"
+if ! [[ $ips_version = +([[:digit:]]) ]]; then
+	return 1
+fi
+if ((ips_version < 6)); then
+	return 1
+fi
 
 COMPREPLY=()
 _get_comp_words_by_ref cur || return
