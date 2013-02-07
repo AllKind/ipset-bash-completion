@@ -31,9 +31,39 @@
 #
 # -----------------------------------------------------------------
 #
-# Version 1.5
+# Version 1.6
 #
 # -----------------------------------------------------------------
+
+
+_ipset_bash_default_compl() { # taken from examples - modified by me
+# This encapsulates the default bash completion code
+# call with the word to be completed as $1
+# Since programmable completion does not use the bash default completions
+# or the readline default of filename completion when the compspec does
+# not generate any matches, this may be used as a `last resort' in a
+# completion function to mimic the default bash completion behavior.
+local h t
+
+if [[ $1 == \$\(* ]]; then # command substitution
+	t=${1#??}
+	COMPREPLY=( $(compgen -c -P '$(' $t) )
+elif [[ $1 == \$\{* ]]; then # variables with a leading `${'
+	t=${1#??}
+	COMPREPLY=( $(compgen -v -P '${' -S '}' $t) )
+elif [[ $1 == \$* ]]; then # variables with a leading `$'
+	t=${1#?}
+	COMPREPLY=( $(compgen -v -P '$' $t ) )
+elif [[ "$1" == *@* ]]; then # hostname
+	t=${1#*@}
+	COMPREPLY=( $( compgen -A hostname $t ) )
+elif [[ $1 == *[*?[]* ]]; then # sh-style glob pattern
+	COMPREPLY=( $( compgen -G "$1" ) )
+# ksh-style extended glob pattern - must be complete
+elif shopt -q extglob && [[ $1 == *[?*+\!@]\(*\)* ]]; then
+	COMPREPLY=( $( compgen -G "$1" ) )
+fi
+}
 
 _ipset_complete() {
 shopt -s extglob
@@ -125,9 +155,10 @@ case "$cur" in
 		done
 		case "$prev" in
 			create|add|del|test|destroy|rename|swap) COMPREPLY=() ;; # -option not expected
-			-f) COMPREPLY=( $( compgen -f $cur ) ) ;;
+			-f) compopt -o nospace; COMPREPLY=( $( compgen -f $cur ) ) ;;
 		esac
 	;;
+	\<|\>) compopt -o nospace; COMPREPLY=( $( compgen -f $cur ) ) ;; # redirection operator
 	*) # not an option
 		if ! ((got_action)); then
 			COMPREPLY=( $( compgen -W 'create add del test destroy list save restore flush rename swap help version' $cur ) )
@@ -149,7 +180,8 @@ case "$cur" in
 			list) COMPREPLY=( $( compgen -W '${arr_sets[@]}' $cur ) ) ;;
 			help) COMPREPLY=( $( compgen -W '${arr_types[@]}' $cur ) ) ;;
 			-o) COMPREPLY=( $( compgen -W 'plain save xml' $cur ) ) ;;
-			-f) COMPREPLY=( $( compgen -f $cur ) ) ;;
+			-f) compopt -o nospace; COMPREPLY=( $( compgen -f $cur ) ) ;;
+			\<|\>) compopt -o nospace; COMPREPLY=( $( compgen -f $cur ) ) ;;
 			*)
 				if ((got_action)); then
 					COMPREPLY=( $( compgen -W '${arr_sets[@]}' $cur ) )
@@ -224,6 +256,8 @@ if ((${#COMPREPLY[@]})); then # post process the reply
 			done
 		fi
 	done
+else
+	_ipset_bash_default_compl "$cur"
 fi
 if [[ $DEBUG ]]; then
 	printf "COMPREPLY:\n"
