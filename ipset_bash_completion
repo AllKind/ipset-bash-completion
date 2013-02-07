@@ -28,7 +28,7 @@
 #
 # -----------------------------------------------------------------
 #
-# Version 1.2
+# Version 1.3
 #
 # -----------------------------------------------------------------
 
@@ -63,7 +63,7 @@ for i in ${!COMP_WORDS[@]}; do # check if we already have an action registered
 	fi
 done
 
-if [[ $COMP_LINE = *@(help|create)* ]]; then i=0
+if [[ $str_action = @(help|create) ]]; then i=0
 	while read -r; do # find supported set types and save them into an array
 		[[ $REPLY = "Supported set types:"* ]] && ((!i)) && i=1 && continue
 		((i)) || continue
@@ -85,28 +85,14 @@ case "$cur" in
 	-*) # any option is requested
 		if ((got_action)); then
 			COMPREPLY=( -\! -f -n -o -q -r -s -t )
-			for ((i=1; i <= ${#COMP_WORDS[@]}; i++)); do
-				case "${COMP_WORDS[i]}" in
-					create|add|del) COMPREPLY=( -\! -q )
-						break
-					;;
-					list) COMPREPLY=( -f -n -o -q -r -s -t  )
-						break
-					;;
-					restore) COMPREPLY=( -\! -f -q )
-						break
-					;;
-					save) COMPREPLY=( -f -q )
-						break
-					;;
-					flush|rename|swap|test) COMPREPLY=( -q )
-						break
-					;;
-					help|version) COMPREPLY=()
-						break
-					;;
+				case "$str_action" in
+					create|add|del) COMPREPLY=( -\! -q ) ;;
+					list) COMPREPLY=( -f -n -o -q -r -s -t  ) ;;
+					restore) COMPREPLY=( -\! -f -q ) ;;
+					save) COMPREPLY=( -f -q ) ;;
+					flush|rename|swap|test) COMPREPLY=( -q ) ;;
+					help|version) COMPREPLY=() ;;
 				esac
-			done
 		else
 			COMPREPLY=( - -\! -f -n -o -q -r -s -t )
 		fi
@@ -120,12 +106,13 @@ case "$cur" in
 						COMPREPLY=( -q -r -s -t )
 					fi
 				;;
-				-n|-t) COMPREPLY=( ${COMP_WORDS[i]} -q $cur ) ;;
-				-r|-s) COMPREPLY=( -o -q -r -s ) ;;
+				-n|-t) COMPREPLY=( -f ${COMP_WORDS[i]} -q ) ;;
+				-r|-s) COMPREPLY=( -f -o -q -r -s ) ;;
 			esac
 		done
 		case "$prev" in
 			create|add|del|test|destroy|rename|swap) COMPREPLY=() ;; # -option not expected
+			-f) COMPREPLY=( $( compgen -f $cur ) ) ;;
 		esac
 	;;
 	*) # not an option
