@@ -63,7 +63,7 @@ _ipset_complete() {
 shopt -s extglob
 local cur prev str_action ips_version
 local -i i=x=y=got_action=in_list=0
-local -i names_only=headers_only=save_format=res_sort=0
+local -i ignore_errors=use_file=names_only=headers_only=save_format=res_sort=0
 local arr_sets=() arr_types=() arr_members=()
 
 # ipset version check 6.x upwards (to v?) is supported
@@ -106,6 +106,29 @@ for i in ${!COMP_WORDS[@]}; do # check if we already have an action registered
 		fi
 	fi
 done
+for ((i=1; i <= ${#COMP_WORDS[@]}; i++)); do
+	case "${COMP_WORDS[i]}" in
+		-\!) ignore_errors=1 ;;
+		-f) use_file=1 ;;
+		-n) names_only=1 ;;
+		-t) headers_only=1 ;;
+		-o) save_format=1
+			if [[ $prev = -o ]]; then
+				save_format=2 # expecting opt-arg
+			elif [[ ${COMP_WORDS[i+1]} = save ]]; then
+				save_format=3 # no -n/-t with -o save
+			fi
+		;;
+		-r|-s) res_sort=1 ;;
+	esac
+done
+if ((names_only && headers_only)); then
+	COMPREPLY=()
+	return 0
+elif ((names_only && res_sort)); then
+	COMPREPLY=()
+	return 0
+fi
 if [[ $str_action = @(help|create) ]]; then i=0
 	while read -r; do # find supported set types and save them into an array
 		[[ $REPLY = "Supported set types:"* ]] && ((!i)) && i=1 && continue
@@ -126,8 +149,12 @@ fi
 
 case "$cur" in
 	-*) # any option is requested
+		if ((save_format == 2)); then
+			COMPREPLY=()
+			return 0
+		fi
 		case "$prev" in
-			create|add|del|test|destroy|rename|swap) # -option not expected
+			create|add|del|test|rename|swap) # -option not expected
 				COMPREPLY=()
 				return 0
 			;;
@@ -135,8 +162,11 @@ case "$cur" in
 				COMPREPLY=( $( compgen -f -- $cur ) )
 				return 0
 			;;
+			-) COMPREPLY=() # interactive mode
+				return 0
+			;;
 		esac
-		if ((got_action)); then COMPREPLY=( -\! -f -n -o -q -r -s -t )
+		if ((got_action)); then
 			case "$str_action" in
 				create|add|del)
 					COMPREPLY=( -\! -q )
@@ -149,7 +179,20 @@ case "$cur" in
 						fi
 					done
 				;;
-				list) COMPREPLY=( -f -n -o -q -r -s -t  ) ;;
+				destroy|flush) COMPREPLY=( -q ) ;;
+				list)
+					if ((names_only || headers_only)); then
+						COMPREPLY=( -f -o -q )
+					elif ((res_sort)); then
+						COMPREPLY=( -f -o -q -r -s )
+					elif ((save_format == 1)); then
+						COMPREPLY=( -f -q -r -s -t )
+					elif ((save_format == 3)); then
+						COMPREPLY=( -f -q -r -s )
+					else
+						COMPREPLY=( -f -n -o -q -r -s -t )
+					fi
+				;;
 				restore) COMPREPLY=( -\! -f -q ) ;;
 				save) COMPREPLY=( -f -q ) ;;
 				rename|swap|test) COMPREPLY=( -q )
@@ -162,53 +205,26 @@ case "$cur" in
 						fi
 					done
 				;;
-				destroy|flush) COMPREPLY=( -q )
-					for ((i=1; i <= ${#COMP_WORDS[@]}; i++)); do
-						if [[ $str_action = ${COMP_WORDS[i]} ]]; then
-							if [[ ${COMP_WORDS[i+1]} = -* ]]; then
-								COMPREPLY=()
-								break
-							fi
-						fi
-					done
-				;;
 				help|version) COMPREPLY=()
 					return 0
 				;;
 			esac
-		else
-			COMPREPLY=( - -\! -f -n -o -q -r -s -t )
-		fi
-		for ((i=1; i <= ${#COMP_WORDS[@]}; i++)); do
-			case "${COMP_WORDS[i]}" in
-				-n) names_only=1 ;;
-				-t) headers_only=1 ;;
-				-o) save_format=1
-					if [[ $prev = -o ]]; then
-						save_format=2 # expecting opt-arg
-					elif [[ ${COMP_WORDS[i+1]} = save ]]; then
-						save_format=3 # no -n/-t with -o save
-					fi
-				;;
-				-r|-s) res_sort=1 ;;
-			esac
-		done
-		if ((names_only && headers_only)); then
-			COMPREPLY=()
-		elif ((names_only && res_sort)); then
-			COMPREPLY=()
-		elif ((save_format == 2)); then
-			COMPREPLY=()
-		elif ((names_only || headers_only)) && ((save_format == 1)); then
-			COMPREPLY=( -f -q )
-		elif ((names_only || headers_only)); then
-			COMPREPLY=( -f -o -q )
-		elif ((res_sort)); then
-			COMPREPLY=( -f -o -q -r -s )
-		elif ((save_format == 1)); then
-			COMPREPLY=( -f -q -r -s -t )
-		elif ((save_format == 3)); then
-			COMPREPLY=( -f -q -r -s )
+		else COMPREPLY=( - -\! -f -n -o -q -r -s -t )
+			if ((names_only || headers_only)) && ((save_format == 1)); then
+				COMPREPLY=( -f -q )
+			elif ((names_only || headers_only)); then
+				COMPREPLY=( -f -o -q )
+			elif ((res_sort)); then
+				COMPREPLY=( -f -o -q -r -s )
+			elif ((save_format == 1)); then
+				COMPREPLY=( -f -q -r -s -t )
+			elif ((save_format == 3)); then
+				COMPREPLY=( -f -q -r -s )
+			elif ((ignore_errors)); then
+				COMPREPLY=( -f -q )
+			elif ((use_file)); then
+				COMPREPLY=( -\! -n -o -q -r -s -t )
+			fi
 		fi
 	;;
 	\<|\>) # redirection operator
@@ -248,13 +264,11 @@ case "$cur" in
 				return 0
 			;;
 			save)
-				if ((got_action)); then
+				if [[ $str_action = save ]]; then
 					COMPREPLY=( $( compgen -W '${arr_sets[@]}' -- $cur ) ) 
-					return 0
 				else
 					if [[ $COMP_LINE = *"-o save"* ]]; then
 						COMPREPLY=( $( compgen -W 'list' -- $cur ) )
-						return 0
 					fi
 				fi
 			;;
@@ -273,6 +287,9 @@ case "$cur" in
 			;;
 			\<|\>) compopt -o nospace
 				COMPREPLY=( $( compgen -f -- $cur ) )
+				return 0
+			;;
+			-) COMPREPLY=() # interactive mode
 				return 0
 			;;
 			*)
@@ -343,15 +360,27 @@ case "$cur" in
 				else
 					for ((i=1; i <= ${#COMP_WORDS[@]}; i++)); do
 						case "${COMP_WORDS[i]}" in
-							-n|-o|-r|-s|-t)
+							-n|-o|-t)
 								COMPREPLY=( $( compgen -W 'list' -- $cur ) )
 								return 0
 							;;
+							-r|-s)
+								COMPREPLY=( $( compgen -W 'list save' -- $cur ) )
+								return 0
+							;;
 							-f)
-								COMPREPLY=( $( compgen -W 'list save restore' -- $cur ) )
+								if ((ignore_errors)); then
+									COMPREPLY=( $( compgen -W 'restore' -- $cur ) )
+								else
+									COMPREPLY=( $( compgen -W 'list save restore' -- $cur ) )
+								fi
 							;;
 							-\!)
-								COMPREPLY=( $( compgen -W 'create add del' -- $cur ) )
+								if ((use_file)); then
+									COMPREPLY=( $( compgen -W 'restore' -- $cur ) )
+								else
+									COMPREPLY=( $( compgen -W 'create add del restore' -- $cur ) )
+								fi
 								return 0
 							;;
 						esac
