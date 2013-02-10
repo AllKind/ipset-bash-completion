@@ -31,7 +31,7 @@
 #
 # -----------------------------------------------------------------
 #
-# Version 1.7
+# Version 1.8
 #
 # -----------------------------------------------------------------
 
@@ -106,6 +106,7 @@ for i in ${!COMP_WORDS[@]}; do # check if we already have an action registered
 		fi
 	fi
 done
+# collect information about used options
 for ((i=1; i <= ${#COMP_WORDS[@]}; i++)); do
 	case "${COMP_WORDS[i]}" in
 		-\!) ignore_errors=1 ;;
@@ -122,6 +123,7 @@ for ((i=1; i <= ${#COMP_WORDS[@]}; i++)); do
 		-r|-s) res_sort=1 ;;
 	esac
 done
+# invalid combination of options
 if ((names_only && headers_only)); then
 	COMPREPLY=()
 	return 0
@@ -171,11 +173,9 @@ case "$cur" in
 				create|add|del)
 					COMPREPLY=( -\! -q )
 					for ((i=1; i <= ${#COMP_WORDS[@]}; i++)); do
-						if [[ $str_action = ${COMP_WORDS[i]} ]]; then
-							if [[ ${COMP_WORDS[i+2]} = -* ]]; then
-								COMPREPLY=()
-								break
-							fi
+						if [[ $str_action = ${COMP_WORDS[i]} && ${COMP_WORDS[i+2]} = -* ]]; then
+							COMPREPLY=() # option not expected, want command value
+							break
 						fi
 					done
 				;;
@@ -197,11 +197,9 @@ case "$cur" in
 				save) COMPREPLY=( -f -q ) ;;
 				rename|swap|test) COMPREPLY=( -q )
 					for ((i=1; i <= ${#COMP_WORDS[@]}; i++)); do
-						if [[ $str_action = ${COMP_WORDS[i]} ]]; then
-							if [[ ${COMP_WORDS[i+2]} = -* ]]; then
-								COMPREPLY=()
-								break
-							fi
+						if [[ $str_action = ${COMP_WORDS[i]} && ${COMP_WORDS[i+2]} = -* ]]; then
+							COMPREPLY=() # option not expected, want command value
+							break
 						fi
 					done
 				;;
