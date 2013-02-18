@@ -94,12 +94,12 @@ if [[ $DEBUG ]]; then
 fi
 
 for i in ${!COMP_WORDS[@]}; do # check if we already have an action registered
-	if [[ ${COMP_WORDS[i]} = @(create|add|del|test|destroy|list|save|restore|flush|rename|swap|help|version) ]]; then
+	if [[ ${COMP_WORDS[i]} = @(create|n|add|del|test|destory|x|list|save|restore|flush|rename|e|swap|w|help|version) ]]; then
 		if [[ ${COMP_WORDS[i]} != save ]]; then
 			got_action=1 str_action=${COMP_WORDS[i]}
 			break
 		else
-			if [[ ${COMP_WORDS[i-1]} != -o ]]; then
+			if [[ ${COMP_WORDS[i-1]} != @(-o|-output) ]]; then
 				got_action=1 str_action=${COMP_WORDS[i]}
 				break
 			fi
@@ -110,18 +110,18 @@ done
 # collect information about used options
 for ((i=1; i < ${#COMP_WORDS[@]}; i++)); do
 	case "${COMP_WORDS[i]}" in
-		-\!) ignore_errors=1 ;;
-		-f) use_file=1 ;;
-		-n) names_only=1 ;;
-		-t) headers_only=1 ;;
-		-o) save_format=1
-			if [[ $prev = -o ]]; then
+		-\!|-exist) ignore_errors=1 ;;
+		-f|-file) use_file=1 ;;
+		-n|-name) names_only=1 ;;
+		-t|-terse) headers_only=1 ;;
+		-o|-output) save_format=1
+			if [[ $prev = @(-o|-output) ]]; then
 				save_format=2 # expecting opt-arg
 			elif [[ ${COMP_WORDS[i+1]} = save ]]; then
 				save_format=3 # no -n/-t with -o save
 			fi
 		;;
-		-r|-s) res_sort=1 ;;
+		-r|-resolve|-s|-sorted) res_sort=1 ;;
 	esac
 done
 
@@ -139,7 +139,7 @@ elif ((ignore_errors)); then
 fi
 
 # for help or create, find supported set types and save them into an array
-if [[ $str_action = @(help|create) ]]; then i=0
+if [[ $str_action = @(help|create|n) ]]; then i=0
 	while read -r; do
 		[[ $REPLY = "Supported set types:"* ]] && ((!i)) && i=1 && continue
 		((i)) || continue
@@ -163,10 +163,10 @@ case "$cur" in
 			return 0
 		fi
 		case "$prev" in
-			create|add|del|test|rename|swap) # -option not expected
+			create|n|add|del|test|rename|e|swap|w) # -option not expected
 				return 0
 			;;
-			\<|\>|-f) compopt -o nospace # expecting filenames as completion
+			\<|\>|-f|-file) compopt -o nospace # expecting filenames as completion
 				COMPREPLY=( $( compgen -f -- $cur ) )
 				return 0
 			;;
@@ -176,8 +176,8 @@ case "$cur" in
 		esac
 		if ((got_action)); then
 			case "$str_action" in
-				create|add|del)
-					COMPREPLY=( -\! -q )
+				create|n|add|del)
+					COMPREPLY=( $( compgen -W '-\! -exist -q -quiet' -- $cur ) )
 					for ((i=1; i < ${#COMP_WORDS[@]}; i++)); do
 						if [[ $str_action = ${COMP_WORDS[i]} && ${COMP_WORDS[i+2]} = -* ]]; then
 							COMPREPLY=() # option not expected, want command value
@@ -185,23 +185,23 @@ case "$cur" in
 						fi
 					done
 				;;
-				destroy|flush) COMPREPLY=( -q ) ;;
+				destory|x|flush) COMPREPLY=( $( compgen -W '-q -quiet' -- $cur ) ) ;;
 				list)
 					if ((names_only || headers_only)); then
-						COMPREPLY=( -f -o -q )
+						COMPREPLY=( $( compgen -W '-f -file -o -output -q -quiet' -- $cur ) )
 					elif ((res_sort)); then
-						COMPREPLY=( -f -o -q -r -s )
+						COMPREPLY=( $( compgen -W '-f -file -o -output -q -quiet -r -resolve -s -sorted' -- $cur ) )
 					elif ((save_format == 1)); then
-						COMPREPLY=( -f -q -r -s -t )
+						COMPREPLY=( $( compgen -W '-f -file -q -quiet -r -resolve -s -sorted -t -terse' -- $cur ) )
 					elif ((save_format == 3)); then
-						COMPREPLY=( -f -q -r -s )
+						COMPREPLY=( $( compgen -W '-f -file -q -quiet -r -resolve -s -sorted' -- $cur ) )
 					else
-						COMPREPLY=( -f -n -o -q -r -s -t )
+						COMPREPLY=( $( compgen -W '-f -file -n -name -o -output -q -quiet -r -resolve -s -sorted -t -terse' -- $cur ) )
 					fi
 				;;
-				restore) COMPREPLY=( -\! -f -q ) ;;
-				save) COMPREPLY=( -f -q ) ;;
-				rename|swap|test) COMPREPLY=( -q )
+				restore) COMPREPLY=( $( compgen -W '-\! -exist -f -file -q -quiet' -- $cur ) ) ;;
+				save) COMPREPLY=( $( compgen -W '-f -file -q -quiet' -- $cur ) ) ;;
+				rename|e|swap|w|test) COMPREPLY=( $( compgen -W '-q -quiet' -- $cur ) )
 					for ((i=1; i < ${#COMP_WORDS[@]}; i++)); do
 						if [[ $str_action = ${COMP_WORDS[i]} && ${COMP_WORDS[i+2]} = -* ]]; then
 							COMPREPLY=() # option not expected, want command value
@@ -213,21 +213,21 @@ case "$cur" in
 					return 0
 				;;
 			esac
-		else COMPREPLY=( - -\! -f -n -o -q -r -s -t )
+		else COMPREPLY=( $( compgen -W '- -\! -exist -f -file -n -name -o -output -q -quiet -r -resolve -s -sorted -t -terse' -- $cur ) )
 			if ((names_only || headers_only)) && ((save_format == 1)); then
-				COMPREPLY=( -f -q )
+				COMPREPLY=( $( compgen -W '-f -file -q -quiet' -- $cur ) )
 			elif ((names_only || headers_only)); then
-				COMPREPLY=( -f -o -q )
+				COMPREPLY=( $( compgen -W '-f -file -o -output -q -quiet' -- $cur ) )
 			elif ((res_sort)); then
-				COMPREPLY=( -f -o -q -r -s )
+				COMPREPLY=( $( compgen -W '-f -file -o -output -q -quiet -r -resolve -s -sorted' -- $cur ) )
 			elif ((save_format == 1)); then
-				COMPREPLY=( -f -q -r -s -t )
+				COMPREPLY=( $( compgen -W '-f -file -q -quiet -r -resolve -s -sorted -t -terse' -- $cur ) )
 			elif ((save_format == 3)); then
-				COMPREPLY=( -f -q -r -s )
+				COMPREPLY=( $( compgen -W '-f -file -q -quiet -r -resolve -s -sorted' -- $cur ) )
 			elif ((ignore_errors)); then
-				COMPREPLY=( -f -q )
+				COMPREPLY=( $( compgen -W '-f -file -q -quiet' -- $cur ) )
 			elif ((use_file)); then
-				COMPREPLY=( -\! -n -o -q -r -s -t )
+				COMPREPLY=( $( compgen -W '-\! -exist -n -name -o -output -q -quiet -r -resolve -s -sorted -t -terse' -- $cur ) )
 			fi
 		fi
 	;;
@@ -248,22 +248,22 @@ case "$cur" in
 		if ((got_action)); then
 			arr_sets=( $(ipset list -n ) )
 		else
-			COMPREPLY=( $( compgen -W 'create add del test destroy list save restore flush rename swap help version' -- $cur ) )
+			COMPREPLY=( $( compgen -W 'create n add del test destroy x list save restore flush rename e swap w help version' -- $cur ) )
 		fi
 		case "$prev" in # depend on previous option
 			restore) COMPREPLY=( \< )
 				for ((i=1; i < ${#COMP_WORDS[@]}; i++)); do
-					if [[ ${COMP_WORDS[i]} = -f ]]; then
+					if [[ ${COMP_WORDS[i]} = @(-f|-file) ]]; then
 						COMPREPLY=() # don't show redirector if we have option -f
 						break
 					fi
 				done
 				return 0
 			;;
-			-|create|version) COMPREPLY=()
+			-|create|n|version) COMPREPLY=()
 				return 0
 			;;
-			add|del|destroy|rename|swap|test)
+			add|del|destory|x|rename|e|swap|w|test)
 			   	COMPREPLY=( $( compgen -W '${arr_sets[@]}' -- $cur ) )
 				return 0
 			;;
@@ -282,7 +282,7 @@ case "$cur" in
 			help) COMPREPLY=( $( compgen -W '${arr_types[@]}' -- $cur ) )
 				return 0
 			;;
-			-o)
+			-o|-output)
 				if ((names_only || headers_only)); then
 					COMPREPLY=( $( compgen -W 'plain xml' -- $cur ) )
 				else
@@ -290,7 +290,7 @@ case "$cur" in
 				fi
 				return 0
 			;;
-			-f|\<|\>) compopt -o nospace
+			-f|-file|\<|\>) compopt -o nospace
 				COMPREPLY=( $( compgen -f -- $cur ) )
 				return 0
 			;;
@@ -308,7 +308,7 @@ case "$cur" in
 								done
 								break
 							;;
-							create) COMPREPLY=()
+							create|n) COMPREPLY=()
 								if [[ ${COMP_WORDS[i+1]} = $prev ]]; then
 									COMPREPLY=( $( compgen -W '${arr_types[@]}' -- $cur ) )
 								fi
@@ -337,7 +337,7 @@ case "$cur" in
 							restore) COMPREPLY=() # not a redirecton
 								break
 							;;
-							swap)
+							swap|w)
 								for x in ${!arr_sets[@]}; do
 									if [[ ${arr_sets[x]} = ${COMP_WORDS[i+2]} ]]; then
 										COMPREPLY=() # only list two sets
@@ -370,7 +370,7 @@ case "$cur" in
 						COMPREPLY=( $( compgen -W 'restore' -- $cur ) )
 						return 0
 					elif ((ignore_errors)); then
-						COMPREPLY=( $( compgen -W 'create add del restore' -- $cur ) )
+						COMPREPLY=( $( compgen -W 'create n add del restore' -- $cur ) )
 						return 0
 					elif ((use_file)); then
 						COMPREPLY=( $( compgen -W 'list save restore' -- $cur ) )
@@ -384,7 +384,7 @@ esac
 if ((${#COMPREPLY[@]})); then # post process the reply
 	for ((i=1; i < ${#COMP_WORDS[@]}; i++)); do # remove dupe options
 		[[ ${COMP_WORDS[i]} = @(""|-) ]] && continue
-		if [[ ${COMP_WORDS[i]} = -?* ]]; then
+		if [[ ${COMP_WORDS[i]} = -?* ]]; then # need logic for removing dupe set names?
 			for x in ${!COMPREPLY[@]}; do
 				if [[ ${COMP_WORDS[i]} = ${COMPREPLY[x]} ]]; then
 					unset COMPREPLY[$x]
