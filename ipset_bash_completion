@@ -61,10 +61,19 @@ fi
 
 _ipset_complete() {
 shopt -s extglob
-local cur prev str_action ips_version
+local cur prev str_action ips_version str_tmp
 local -i i=0 x=0 y=0 got_action=0 in_list=0
 local -i ignore_errors=0 use_file=0 names_only=0 headers_only=0 save_format=0 res_sort=0
 local arr_sets=() arr_types=() arr_members=()
+local arr_opts=(
+"-\! -exist"
+"-o -output"
+"-q -quiet"
+"-r -resolve"
+"-n -name"
+"-t -terse"
+"-f -file"
+)
 
 # ipset version check 6.x upwards (to v?) is supported
 ips_version="$(ipset --version)"
@@ -80,8 +89,8 @@ COMP_WORDBREAKS=$' \t\n"\'><=;|&('
 _get_comp_words_by_ref cur || return
 _get_comp_words_by_ref prev || return
 
-#DEBUG=Y
-if [[ $DEBUG ]]; then
+#_DEBUG_IPSET_COMPL=Y
+if [[ $_DEBUG_IPSET_COMPL ]]; then
 	printf "\nCOMP_WORDBREAKS: <%s>\n" "$COMP_WORDBREAKS"
 	printf "COMP_LINE: <%s>\n" "$COMP_LINE"
 	printf "COMP_TYPE: <%s>\n" "$COMP_TYPE"
@@ -93,8 +102,8 @@ if [[ $DEBUG ]]; then
 	printf "cur: <%s> prev: <%s>\n" "$cur" "$prev"
 fi
 
-for i in ${!COMP_WORDS[@]}; do # check if we already have an action registered
-	if [[ ${COMP_WORDS[i]} = @(create|n|add|del|test|destory|x|list|save|restore|flush|rename|e|swap|w|help|version) ]]; then
+for ((i=1; i < ${#COMP_WORDS[@]}; i++)); do # check if we already have an action registered
+	if [[ ${COMP_WORDS[i]} = @(create|n|add|del|test|destroy|x|list|save|restore|flush|rename|e|swap|w|help|version) ]]; then
 		if [[ ${COMP_WORDS[i]} != save ]]; then
 			got_action=1 str_action=${COMP_WORDS[i]}
 			break
@@ -166,7 +175,8 @@ case "$cur" in
 			create|n|add|del|test|rename|e|swap|w) # -option not expected
 				return 0
 			;;
-			\<|\>|-f|-file) compopt -o nospace # expecting filenames as completion
+			\<|\>|-f|-file) # expecting filenames as completion
+				compopt -o nospace
 				COMPREPLY=( $( compgen -f -- $cur ) )
 				return 0
 			;;
@@ -185,7 +195,7 @@ case "$cur" in
 						fi
 					done
 				;;
-				destory|x|flush) COMPREPLY=( $( compgen -W '-q -quiet' -- $cur ) ) ;;
+				destroy|x|flush) COMPREPLY=( $( compgen -W '-q -quiet' -- $cur ) ) ;;
 				list)
 					if ((names_only || headers_only)); then
 						COMPREPLY=( $( compgen -W '-f -file -o -output -q -quiet' -- $cur ) )
@@ -213,7 +223,8 @@ case "$cur" in
 					return 0
 				;;
 			esac
-		else COMPREPLY=( $( compgen -W '- -\! -exist -f -file -n -name -o -output -q -quiet -r -resolve -s -sorted -t -terse' -- $cur ) )
+#		else COMPREPLY=( $( compgen -W '- -\! -exist -f -file -n -name -o -output -q -quiet -r -resolve -s -sorted -t -terse' -- $cur ) )
+		else COMPREPLY=( $( compgen -W '- ${arr_opts[@]}' -- $cur ) )
 			if ((names_only || headers_only)) && ((save_format == 1)); then
 				COMPREPLY=( $( compgen -W '-f -file -q -quiet' -- $cur ) )
 			elif ((names_only || headers_only)); then
@@ -263,7 +274,7 @@ case "$cur" in
 			-|create|n|version) COMPREPLY=()
 				return 0
 			;;
-			add|del|destory|x|rename|e|swap|w|test)
+			add|del|destroy|x|rename|e|swap|w|test)
 			   	COMPREPLY=( $( compgen -W '${arr_sets[@]}' -- $cur ) )
 				return 0
 			;;
@@ -381,23 +392,60 @@ case "$cur" in
 		esac
 	;;
 esac
+if [[ $_DEBUG_IPSET_COMPL ]]; then
+	printf "COMPREPLY before dedupe:\n"
+	printf "<%s>\n" "${COMPREPLY[@]}"
+fi
 if ((${#COMPREPLY[@]})); then # post process the reply
 	for ((i=1; i < ${#COMP_WORDS[@]}; i++)); do # remove dupe options
 		[[ ${COMP_WORDS[i]} = @(""|-) ]] && continue
 		if [[ ${COMP_WORDS[i]} = -?* ]]; then # need logic for removing dupe set names?
+			# if the user supplied the short form of an option previously, and now requests the long form,
+			# remove the corresponding long option, vice versa for short options
+			for y in ${!arr_opts[@]}; do # cycle through main options
+				set -- ${arr_opts[y]} # $1 = short , $2 = long option
+				str_tmp=""
+				if [[ ${COMP_WORDS[i]} = $1 ]]; then # we got short version on the cmdline
+					str_tmp=$2
+				elif [[ ${COMP_WORDS[i]} = $2 ]]; then # we got long version on the cmdline
+					str_tmp=$1
+				fi
+				[[ $str_tmp ]] || continue
+				for x in ${!COMPREPLY[@]}; do # compare with compreply
+					if [[ ${COMPREPLY[x]} = $str_tmp ]]; then
+						if [[ $_DEBUG_IPSET_COMPL ]]; then
+							printf "removing option alias - unsetting COMPREPLY[$x]: %s\n" "${COMPREPLY[x]}"
+						fi
+						unset COMPREPLY[x]
+						break 2
+					fi
+				done
+			done
 			for x in ${!COMPREPLY[@]}; do
 				if [[ ${COMP_WORDS[i]} = ${COMPREPLY[x]} ]]; then
+					if [[ $_DEBUG_IPSET_COMPL ]]; then
+						printf "removing dupe option - unsetting COMPREPLY[$x]: %s\n" "${COMPREPLY[x]}"
+					fi
 					unset COMPREPLY[$x]
 					break
 				fi
 			done
+		else
+			if [[ $str_action = @(w|swap) ]]; then
+				for x in ${!COMPREPLY[@]}; do
+					if [[ ${COMP_WORDS[i]} = ${COMPREPLY[x]} ]]; then
+						unset COMPREPLY[$x]
+						break
+					fi
+				done
+			fi
 		fi
 	done
 else
 	_ipset_bash_default_compl "$cur"
 fi
-if [[ $DEBUG ]]; then
-	printf "COMPREPLY:\n"
+if [[ $_DEBUG_IPSET_COMPL ]]; then
+	printf "COMPREPLY after dedupe:\n"
 	printf "<%s>\n" "${COMPREPLY[@]}"
 fi
 }
