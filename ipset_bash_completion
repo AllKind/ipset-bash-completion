@@ -62,8 +62,8 @@ fi
 _ipset_complete() {
 shopt -s extglob
 local cur prev str_action ips_version
-local -i i=x=y=got_action=in_list=0
-local -i ignore_errors=use_file=names_only=headers_only=save_format=res_sort=0
+local -i i=0 x=0 y=0 got_action=0 in_list=0
+local -i ignore_errors=0 use_file=0 names_only=0 headers_only=0 save_format=0 res_sort=0
 local arr_sets=() arr_types=() arr_members=()
 
 # ipset version check 6.x upwards (to v?) is supported
@@ -108,7 +108,7 @@ for i in ${!COMP_WORDS[@]}; do # check if we already have an action registered
 done
 
 # collect information about used options
-for ((i=1; i <= ${#COMP_WORDS[@]}; i++)); do
+for ((i=1; i < ${#COMP_WORDS[@]}; i++)); do
 	case "${COMP_WORDS[i]}" in
 		-\!) ignore_errors=1 ;;
 		-f) use_file=1 ;;
@@ -127,16 +127,13 @@ done
 
 # invalid combination of options
 if ((names_only && headers_only)); then
-	COMPREPLY=()
 	return 0
 elif ((names_only || headers_only)); then
 	if ((res_sort || ignore_errors)) || ((save_format == 3)); then
-		COMPREPLY=()
 		return 0
 	fi
 elif ((ignore_errors)); then
 	if ((res_sort || save_format)); then
-		COMPREPLY=()
 		return 0
 	fi
 fi
@@ -152,7 +149,7 @@ if [[ $str_action = @(help|create) ]]; then i=0
 		fi
 	done < <(ipset help)
 	for i in ${!arr_types[@]}; do # remove dupe entries
-		for ((x=i+1; x <= ${#arr_types[@]}; x++)); do
+		for ((x=i+1; x < ${#arr_types[@]}; x++)); do
 			if [[ ${arr_types[i]} = ${arr_types[x]} ]]; then
 				unset arr_types[x]
 			fi
@@ -163,19 +160,17 @@ fi
 case "$cur" in
 	-*) # any option is requested
 		if ((save_format == 2)); then
-			COMPREPLY=()
 			return 0
 		fi
 		case "$prev" in
 			create|add|del|test|rename|swap) # -option not expected
-				COMPREPLY=()
 				return 0
 			;;
 			\<|\>|-f) compopt -o nospace # expecting filenames as completion
 				COMPREPLY=( $( compgen -f -- $cur ) )
 				return 0
 			;;
-			-) COMPREPLY=() # interactive mode
+			-) # interactive mode
 				return 0
 			;;
 		esac
@@ -183,7 +178,7 @@ case "$cur" in
 			case "$str_action" in
 				create|add|del)
 					COMPREPLY=( -\! -q )
-					for ((i=1; i <= ${#COMP_WORDS[@]}; i++)); do
+					for ((i=1; i < ${#COMP_WORDS[@]}; i++)); do
 						if [[ $str_action = ${COMP_WORDS[i]} && ${COMP_WORDS[i+2]} = -* ]]; then
 							COMPREPLY=() # option not expected, want command value
 							break
@@ -207,7 +202,7 @@ case "$cur" in
 				restore) COMPREPLY=( -\! -f -q ) ;;
 				save) COMPREPLY=( -f -q ) ;;
 				rename|swap|test) COMPREPLY=( -q )
-					for ((i=1; i <= ${#COMP_WORDS[@]}; i++)); do
+					for ((i=1; i < ${#COMP_WORDS[@]}; i++)); do
 						if [[ $str_action = ${COMP_WORDS[i]} && ${COMP_WORDS[i+2]} = -* ]]; then
 							COMPREPLY=() # option not expected, want command value
 							break
@@ -257,7 +252,7 @@ case "$cur" in
 		fi
 		case "$prev" in # depend on previous option
 			restore) COMPREPLY=( \< )
-				for ((i=1; i <= ${#COMP_WORDS[@]}; i++)); do
+				for ((i=1; i < ${#COMP_WORDS[@]}; i++)); do
 					if [[ ${COMP_WORDS[i]} = -f ]]; then
 						COMPREPLY=() # don't show redirector if we have option -f
 						break
@@ -265,7 +260,7 @@ case "$cur" in
 				done
 				return 0
 			;;
-			create|version) COMPREPLY=()
+			-|create|version) COMPREPLY=()
 				return 0
 			;;
 			add|del|destroy|rename|swap|test)
@@ -295,24 +290,17 @@ case "$cur" in
 				fi
 				return 0
 			;;
-			-f) compopt -o nospace
+			-f|\<|\>) compopt -o nospace
 				COMPREPLY=( $( compgen -f -- $cur ) )
-				return 0
-			;;
-			\<|\>) compopt -o nospace
-				COMPREPLY=( $( compgen -f -- $cur ) )
-				return 0
-			;;
-			-) COMPREPLY=() # interactive mode
 				return 0
 			;;
 			*)
 				if ((got_action)); then
 					COMPREPLY=( $( compgen -W '${arr_sets[@]}' -- $cur ) )
-					for ((i=1; i <= ${#COMP_WORDS[@]}; i++)); do
+					for ((i=1; i < ${#COMP_WORDS[@]}; i++)); do
 						case "${COMP_WORDS[i]}" in
 							add)
-								for ((x=${COMP_WORDS[i+1]}; x <= ${#COMP_WORDS[@]}; x++)); do
+								for ((x=${COMP_WORDS[i+1]}; x < ${#COMP_WORDS[@]}; x++)); do
 									if [[ ${COMP_WORDS[x]} = $prev ]]; then
 										COMPREPLY=() # only list sets after the action command
 										break 2
@@ -359,7 +347,7 @@ case "$cur" in
 								break
 							;;
 							*)
-								for ((y=1; y <= ${#COMP_WORDS[@]}; y++)); do
+								for ((y=1; y < ${#COMP_WORDS[@]}; y++)); do
 									[[ ${COMP_WORDS[y]} ]] || continue
 									for x in ${!arr_sets[@]}; do
 										if [[ ${arr_sets[x]} = ${COMP_WORDS[y]} ]]; then
@@ -394,14 +382,16 @@ case "$cur" in
 	;;
 esac
 if ((${#COMPREPLY[@]})); then # post process the reply
-	for ((i=1; i <= ${#COMP_WORDS[@]}; i++)); do # remove dupe options
+	for ((i=1; i < ${#COMP_WORDS[@]}; i++)); do # remove dupe options
 		[[ ${COMP_WORDS[i]} = @(""|-) ]] && continue
-		for x in ${!COMPREPLY[@]}; do
-			if [[ ${COMP_WORDS[i]} = ${COMPREPLY[x]} ]]; then
-				unset COMPREPLY[$x]
-				break
-			fi
-		done
+		if [[ ${COMP_WORDS[i]} = -?* ]]; then
+			for x in ${!COMPREPLY[@]}; do
+				if [[ ${COMP_WORDS[i]} = ${COMPREPLY[x]} ]]; then
+					unset COMPREPLY[$x]
+					break
+				fi
+			done
+		fi
 	done
 else
 	_ipset_bash_default_compl "$cur"
