@@ -85,7 +85,7 @@ done < <(ipset list "$1" 2>/dev/null)
 _ipset_complete() {
 shopt -s extglob
 local cur prev ips_version str_action str_setname str_filename str_tmp
-local -i i=x=y=got_action=0
+local -i i=x=y=got_action=action_index=0
 local -i ignore_errors=use_file=names_only=headers_only=save_format=res_sort=0
 local arr_sets=() arr_types=() arr_members=() arr_unknown_opts=() arr_tmp=()
 local arr_opts=(
@@ -137,14 +137,14 @@ for ((i=1; i < ${#COMP_WORDS[@]}; i++)); do
 				done
 			fi
 			if [[ ${COMP_WORDS[i]} != save ]]; then
-				if ! ((got_action)); then got_action=1 str_action=${COMP_WORDS[i]}
+				if ! ((got_action)); then got_action=1 str_action=${COMP_WORDS[i]} action_index=$i
 					if [[ $str_action = @(create|n|add|del|test|destroy|x|list|save|restore|flush|rename|e|swap|w) ]]; then
 						str_setname=${COMP_WORDS[i+1]} # register the set name
 					fi
 				fi
 			else
 				if [[ ${COMP_WORDS[i-1]} != @(-o|-output) ]]; then
-					if ! ((got_action)); then got_action=1 str_action=${COMP_WORDS[i]}
+					if ! ((got_action)); then got_action=1 str_action=${COMP_WORDS[i]} action_index=$i
 						if [[ $str_action = @(create|n|add|del|test|destroy|x|list|save|restore|flush|rename|e|swap|w) ]]; then
 							str_setname=${COMP_WORDS[i+1]} # register the set name
 						fi
@@ -702,6 +702,9 @@ if ((${#COMPREPLY[@]})); then # post process the reply
 					# continue if reply matches action, could be a set name too
 					[[ ${COMPREPLY[x]} = @(-*|$str_action) ]] && continue
 					if [[ ${COMP_WORDS[i]} = ${COMPREPLY[x]} ]]; then
+						if [[ $_DEBUG_IPSET_COMPL ]]; then
+							printf "removing dupe option - unsetting COMPREPLY[$x]: %s\n" "${COMPREPLY[x]}"
+						fi
 						unset COMPREPLY[$x]
 						break
 					fi
