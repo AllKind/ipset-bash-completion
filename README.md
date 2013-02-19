@@ -28,6 +28,7 @@ Providing some kind of interactive help.
 - Complete on filenames if the current option requires it.
 - Complete variable names, command subtitution and globbing patterns.
 - Do not complete if an invalid combination of options is used.
+- Do not complete if an invalid value of an option argument is detected.
 
 
 Installation
