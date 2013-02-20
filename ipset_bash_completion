@@ -762,6 +762,9 @@ if ((${#COMPREPLY[@]})); then # post process the reply
 		else # dedupe option names (timeout,hashsize, etc), or set names
 			if [[ $str_action = @(n|create|add|w|swap) ]]; then
 				for x in ${!COMPREPLY[@]}; do
+					if [[ $str_setname = @(timeout|range|hashsize|size|maxelem|family|inet|inet6|netmask|nomatch|before|after) ]]
+					then [[ ${COMP_LINE/$str_setname/} = *$str_setname* ]] || continue
+					fi
 					# continue if reply matches action, could be a set name too
 					[[ ${COMPREPLY[x]} = $str_action ]] && continue
 					if [[ ${COMP_WORDS[i]} = ${COMPREPLY[x]} ]]; then
