@@ -360,8 +360,15 @@ case "$cur" in
 						# option not expected, want command value
 						if [[ ${COMP_WORDS[i]} = @(timeout|maxelem|hashsize|size) && ${COMP_WORDS[i+1]} != @(+([[:digit:]])|0x+([[:xdigit:]])) ]]
 						then return 0 # option argument validation
-						elif [[ ${COMP_WORDS[i]} = range && ${COMP_WORDS[i+1]} != *-* ]]
-						then return 0 # option argument validation
+						elif [[ ${COMP_WORDS[i]} = range ]]; then
+							case "$str_tmp" in # option argument validation
+								bitmap:port)
+									[[ ${COMP_WORDS[x+1]} && ${COMP_WORDS[x+1]} != *-* ]] && return 0
+								;;
+								*)
+									[[ ${COMP_WORDS[x+1]} && ${COMP_WORDS[x+1]} != @(*-*|*/+([[:digit:]])) ]] && return 0
+								;;
+							esac
 						elif [[ ${COMP_WORDS[i]} = family && ${COMP_WORDS[i+1]} != inet?(6) ]]
 						then return 0 # option argument validation
 						fi
@@ -602,7 +609,14 @@ case "$cur" in
 										[[ ${COMP_WORDS[x+1]} && ${COMP_WORDS[x+1]} != inet?(6) ]] && return 0
 										;;
 									range)
-										[[ ${COMP_WORDS[x+1]} && ${COMP_WORDS[x+1]} != *-* ]] && return 0
+										case "$str_tmp" in
+											bitmap:port)
+												[[ ${COMP_WORDS[x+1]} && ${COMP_WORDS[x+1]} != *-* ]] && return 0
+											;;
+											*)
+												[[ ${COMP_WORDS[x+1]} && ${COMP_WORDS[x+1]} != @(*-*|*/+([[:digit:]])) ]] && return 0
+											;;
+										esac
 										;;
 								esac
 							done
