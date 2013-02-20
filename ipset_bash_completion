@@ -95,8 +95,8 @@ return 1
 
 _ipset_complete() {
 shopt -s extglob
-local cur prev ips_version str_action str_setname str_filename str_tmp
-local -i i=x=y=got_action=action_index=0
+local cur prev ips_version str_action str_setname str_filename str_tmp str_order="before after"
+local -i i=x=y=got_action=action_index=order_index=0
 local -i ignore_errors=use_file=names_only=headers_only=save_format=res_sort=0
 local arr_sets=() arr_types=() arr_members=() arr_unknown_opts=() arr_tmp=()
 local arr_opts=(
@@ -180,12 +180,10 @@ for ((i=1; i < ${#COMP_WORDS[@]}; i++)); do
 			fi
 		;;
 		before|after)
-			if ((got_action)); then
-				if ((! order_idx && i == action_idx+3)); then
-					order_idx=$i str_order="${COMP_WORDS[i]}"
-				fi
+			if ((got_action && ! order_index && i == action_index+3)); then
+				order_index=$i str_order=""
 			fi
-#		;;
+		;;
 	esac
 done
 
@@ -193,6 +191,7 @@ if [[ $_DEBUG_IPSET_COMPL ]]; then
 	printf "got_action: <%s>\n" "$got_action"
 	printf "\nstr_action: <%s>\n" "$str_action"
 	printf "action_index: <%s>\n" "$action_index"
+	printf "order_index: <%s>\n" "$order_index"
 	printf "str_setname: <%s>\n" "$str_setname"
 	printf "str_filename: <%s>\n" "$str_filename"
 	printf "save_format: <%s>\n" "$save_format"
@@ -264,7 +263,7 @@ case "$cur" in
 						if [[ ${COMP_WORDS[action_index+2]} = - ]]; then
 							case "$str_tmp" in
 								list:*) arr_tmp=()
-									COMPREPLY=( $( compgen -W 'before after timeout' -- $cur ) )
+									COMPREPLY=( $( compgen -W '$str_order timeout' -- $cur ) )
 									return 0
 								;;
 							esac
@@ -549,7 +548,7 @@ case "$cur" in
 									COMPREPLY=( $( compgen -W 'timeout' -- $cur ) )
 								;;
 								list:*)
-									COMPREPLY=( $( compgen -W 'before after timeout' -- $cur ) )
+									COMPREPLY=( $( compgen -W '$str_order timeout' -- $cur ) )
 								;;
 							esac
 						else # add options following
@@ -569,7 +568,7 @@ case "$cur" in
 												_ipset_get_members --names-only "$str_setname"
 												COMPREPLY=( $( compgen -W '${arr_members[@]}' -- $cur ) )
 											elif [[ $prev != @(-q|-quiet|-\!|-exist|timeout) ]]; then
-												COMPREPLY=( $( compgen -W 'before after timeout' -- $cur ) )
+												COMPREPLY=( $( compgen -W '$str_order timeout' -- $cur ) )
 											fi
 										;;
 									esac
@@ -642,7 +641,7 @@ case "$cur" in
 						_ipset_get_members --names-only "${COMP_WORDS[action_index+1]}"
 						if [[ ${COMP_WORDS[action_index+2]} = $prev ]]; then # add options
 							case "$str_tmp" in
-								list:*) COMPREPLY=( $( compgen -W 'before after' -- $cur ) ) ;;
+								list:*) COMPREPLY=( $( compgen -W '$str_order' -- $cur ) ) ;;
 							esac
 						else # add options following
 							case "$str_tmp" in
