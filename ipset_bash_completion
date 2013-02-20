@@ -179,6 +179,13 @@ for ((i=1; i < ${#COMP_WORDS[@]}; i++)); do
 				fi
 			fi
 		;;
+		before|after)
+			if ((got_action)); then
+				if ((! order_idx && i == action_idx+3)); then
+					order_idx=$i str_order="${COMP_WORDS[i]}"
+				fi
+			fi
+#		;;
 	esac
 done
 
@@ -384,7 +391,7 @@ case "$cur" in
 								return 0
 							fi
 						elif [[ $str_action = test ]]; then
-							if $(_ipset_get_set_type "$str_setname") = list:* ]]; then
+							if [[ $(_ipset_get_set_type "$str_setname") = list:* ]]; then
 								if _ipset_is_set "${cur}*"; then
 									COMPREPLY=( $( compgen -W '${arr_sets[@]}' -- $cur ) )
 									return 0
