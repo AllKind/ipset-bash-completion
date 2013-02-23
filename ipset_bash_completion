@@ -26,6 +26,13 @@
 # Tested with ipset versions:
 # 6.16.1
 # -----------------------------------------------------------------
+# Requirements:
+#
+# The bash completion package version 1.1 or greater.
+# http://bash-completion.alioth.debian.org/
+#
+# -----------------------------------------------------------------
+# Installation:
 #
 # Put it into ~/.bash_completion or /etc/bash_completion.d/
 #
@@ -36,33 +43,41 @@
 # -----------------------------------------------------------------
 
 
-_ipset_bash_default_compl() { # taken from examples - modified by me
-# call with the word to be completed as $1
-local t
-if [[ $1 == \$\(* ]]; then # command substitution
-	t=${1#??}
-	COMPREPLY=( $(compgen -c -P '$(' $t) )
-elif [[ $1 == \$\{* ]]; then # variables with a leading `${'
-	t=${1#??}
-	COMPREPLY=( $(compgen -v -P '${' -S '}' $t) )
-elif [[ $1 == \$* ]]; then # variables with a leading `$'
-	t=${1#?}
-	COMPREPLY=( $(compgen -v -P '$' $t ) )
-elif [[ "$1" == *@* ]]; then # hostname
-	t=${1#*@}
-	COMPREPLY=( $( compgen -A hostname $t ) )
-elif [[ $1 == *[*?[]* ]]; then # sh-style glob pattern
-	COMPREPLY=( $( compgen -G "$1" ) )
-# ksh-style extended glob pattern - must be complete
-elif shopt -q extglob && [[ $1 == *[?*+\!@]\(*\)* ]]; then
-	COMPREPLY=( $( compgen -G "$1" ) )
-fi
+_ipset_is_set() {
+local -i idx
+((${#arr_sets[@]})) || arr_sets=( $(ipset list -n) )
+for idx in ${!arr_sets[@]}; do
+	if [[ ${arr_sets[idx]} = $1 ]]; then
+		return 0
+	fi
+done
+return 1
 }
 
 _ipset_get_set_type() {
 while read n d; do
 	[[ $n = Type: ]] && printf '%s\n' $d && break
 done < <(ipset -t list "$1" 2>/dev/null)
+}
+
+_ipset_get_supported_types() {
+((${#arr_types[@]})) && return
+local -i i=0
+while read -r; do
+	[[ $REPLY = "Supported set types:"* ]] && ((!i)) && i=1 && continue
+	((i)) || continue
+	if [[ $REPLY = *:* ]]; then
+		set -- $REPLY
+		arr_types[${#arr_types[@]}]="$1"
+	fi
+done < <(ipset help)
+for i in ${!arr_types[@]}; do # remove dupe entries
+	for ((x=i+1; x < ${#arr_types[@]}; x++)); do
+		if [[ ${arr_types[i]} = ${arr_types[x]} ]]; then
+			unset arr_types[x]
+		fi
+	done
+done
 }
 
 _ipset_get_members() {
@@ -82,38 +97,12 @@ while read -r; do
 done < <(ipset list "$1" 2>/dev/null)
 }
 
-_ipset_is_set() {
-local -i idx
-arr_sets=( $(ipset list -n) )
-for idx in ${!arr_sets[@]}; do
-	if [[ ${arr_sets[idx]} = $1 ]]; then
-		return 0
-	fi
-done
+_ipset_set_has_timeout() {
+while read -r; do
+	[[ $REPLY = Header:*timeout* ]] && return 0
+done < <(ipset -t list "$1")
 return 1
 }
-
-#_ipset_dedupe_opts() {
-#local str_opt
-#local -i i x
-#while (($#)); do str_opt=$1
-#	shift
-#	for i in ${!arr_used_opts[@]}; do
-#		# if the user supplied the short form of an option previously, and now requests the long form,
-#		# remove the corresponding long option, vice versa for short options
-#		for x in ${!arr_opts[@]}; do # cycle through main options
-#			set -- ${arr_opts[x]} # $1 = short , $2 = long option
-#			[[ $1 = $cur ]] && break 2
-#			if [[ ${arr_used_opts[i]} = $1 ]]; then # we got short version on the cmdline
-#				continue 3
-#			elif [[ ${arr_used_opts[i]} = $2 ]]; then # we got long version on the cmdline
-#				continue 3
-#			fi
-#		done
-#	done
-#	printf "%s\n" "$str_opt"
-#done
-#}
 
 _ipset_dedupe_cmd_opts() {
 local str_opt
@@ -126,12 +115,108 @@ for str_opt in "${@}"; do
 done
 }
 
+_ipset_colon_ltrim() {
+((got_bashcompl)) || return 0
+if [[ $COMP_WORDBREAKS = *:* ]]; then
+	__ltrim_colon_completions "$1"
+fi
+}
+
+_ipset_get_options() {
+local -i idx oidx ridx
+if ((got_action)); then
+	case "$str_action" in
+		rename|e|swap|w|test|flush|destroy|x)
+			COMPREPLY=( $( compgen -W '-q -quiet' -- $cur ) )
+		;;
+		save)
+			COMPREPLY=( $( compgen -W '-f -file -q -quiet' -- $cur ) )
+		;;
+		create|n|add|del)
+			COMPREPLY=( $( compgen -W '-\! -exist -q -quiet' -- $cur ) )
+		;;
+		restore)
+			COMPREPLY=( $( compgen -W '-\! -exist -f -file -q -quiet' -- $cur ) )
+		;;
+		list)
+			if ((names_only || headers_only)); then
+				COMPREPLY=( $( compgen -W '-f -file -o -output -q -quiet' -- $cur ) )
+			elif ((res_sort)); then
+				COMPREPLY=( $( compgen -W '-f -file -o -output -q -quiet -r -resolve -s -sorted' -- $cur ) )
+			elif ((save_format == 1)); then
+				COMPREPLY=( $( compgen -W '-f -file -q -quiet -r -resolve -s -sorted -t -terse' -- $cur ) )
+			elif ((save_format == 3)); then
+				COMPREPLY=( $( compgen -W '-f -file -q -quiet -r -resolve -s -sorted' -- $cur ) )
+			else
+				COMPREPLY=( $( compgen -W '-f -file -n -name -o -output -q -quiet -r -resolve -s -sorted -t -terse' -- $cur ) )
+			fi
+		;;
+	esac
+else
+	if ((names_only || headers_only)) && ((save_format == 1)); then
+		COMPREPLY=( $( compgen -W '-f -file -q -quiet' -- $cur ) )
+	elif ((names_only || headers_only)); then
+		COMPREPLY=( $( compgen -W '-f -file -o -output -q -quiet' -- $cur ) )
+	elif ((res_sort)); then
+		COMPREPLY=( $( compgen -W '-f -file -o -output -q -quiet -r -resolve -s -sorted' -- $cur ) )
+	elif ((save_format == 1)); then
+		COMPREPLY=( $( compgen -W '-f -file -q -quiet -r -resolve -s -sorted -t -terse' -- $cur ) )
+	elif ((save_format == 3)); then
+		COMPREPLY=( $( compgen -W '-f -file -q -quiet -r -resolve -s -sorted' -- $cur ) )
+	elif ((ignore_errors)); then
+		COMPREPLY=( $( compgen -W '-f -file -q -quiet' -- $cur ) )
+	elif ((use_file)); then
+		COMPREPLY=( $( compgen -W '-\! -exist -n -name -o -output -q -quiet -r -resolve -s -sorted -t -terse' -- $cur ) )
+	else
+		COMPREPLY=( $( compgen -W '- ${arr_opts[@]}' -- $cur ) )
+	fi
+fi
+if ((${#COMPREPLY[@]})); then # post process the reply
+	for idx in ${!arr_used_opts[@]}; do
+		# if the user supplied the short form of an option previously, and now requests the long form,
+		# remove the corresponding long option, vice versa for short options
+		for oidx in ${!arr_opts[@]}; do # cycle through main options
+			set -- ${arr_opts[oidx]} # $1 = short , $2 = long option
+			str_tmp=""
+			[[ $1 = $cur ]] && continue
+			if [[ ${arr_used_opts[idx]} = $1 ]]; then # we got short version on the cmdline
+				str_tmp=$2
+			elif [[ ${arr_used_opts[idx]} = $2 ]]; then # we got long version on the cmdline
+				str_tmp=$1
+			fi
+			[[ $str_tmp ]] || continue
+			for ridx in ${!COMPREPLY[@]}; do # compare with compreply
+				if [[ ${COMPREPLY[ridx]} = $str_tmp ]]; then
+					if [[ $_DEBUG_IPSET_COMPL ]]; then
+						printf "removing option alias - unsetting COMPREPLY[$ridx]: %s\n" "${COMPREPLY[ridx]}"
+					fi
+					unset COMPREPLY[ridx]
+					break 2
+				fi
+			done
+		done
+		for ridx in ${!COMPREPLY[@]}; do # de-dupe options
+			if [[ ${arr_used_opts[idx]} = ${COMPREPLY[ridx]} && ${COMPREPLY[ridx]} != $cur ]]; then
+				if [[ $_DEBUG_IPSET_COMPL ]]; then
+					printf "removing dupe option - unsetting COMPREPLY[$ridx]: %s\n" "${COMPREPLY[ridx]}"
+				fi
+				unset COMPREPLY[ridx]
+				break
+			fi
+		done
+	done
+fi
+}
+
 _ipset_complete() {
 shopt -s extglob
-local cur prev ips_version str_action str_setname str_filename str_tmp str_order="before after"
-local -i i=x=y=got_action=action_index=order_index=0
+local cur prev cword words ips_version str_action str_setname str_filename
+local str_tmp="" str_timeout="timeout" str_order="before after"
+local -i i=x=y=0
+local -i got_bashcompl=got_action=action_index=order_index=set_has_timeout=0
 local -i ignore_errors=use_file=names_only=headers_only=save_format=res_sort=0
-local arr_sets=() arr_types=() arr_members=() arr_unknown_opts=() arr_dupe_cmd_opts=() arr_used_opts=() arr_tmp=()
+local arr_sets=() arr_types=() arr_members=() arr_unknown_opts=()
+local arr_dupe_cmd_opts=() arr_used_opts=() arr_tmp=()
 local arr_opts=(
 "-\! -exist"
 "-o -output"
@@ -143,6 +228,8 @@ local arr_opts=(
 "-f -file"
 )
 
+COMPREPLY=()
+
 # ipset version check 6.x upwards (to v?) is supported
 ips_version="$(ipset --version)"
 ips_version="${ips_version#ipset v}"
@@ -150,17 +237,15 @@ ips_version="${ips_version%%.*}"
 [[ $ips_version = +([[:digit:]]) ]] || return 1
 ((ips_version < 6)) && return 1
 
-COMPREPLY=()
-
-COMP_WORDBREAKS=$' \t\n"\'><=;|&(' # TODO: different solution than permanent setting
-
 # expecting _get_comp_words_by_ref() to exist from bash_completion
-if declare -f _get_comp_words_by_ref &>/dev/null; then
-	_get_comp_words_by_ref cur || return
-	_get_comp_words_by_ref prev || return
-else # not so neat, but a workaround
+if declare -f _get_comp_words_by_ref &>/dev/null; then got_bashcompl=1
+	_get_comp_words_by_ref -n : cur prev cword words || return
+else got_bashcompl=0 # not so neat, but a workaround
+	COMP_WORDBREAKS=$' \t\n"\'><=;|&('
 	cur="${COMP_WORDS[COMP_CWORD]}"
 	prev="${COMP_WORDS[COMP_CWORD-1]}"
+	cword=$COMP_CWORD
+	for i in ${!COMP_WORDS[@]}; do words[i]="${COMP_WORDS[i]}"; done
 fi
 
 #_DEBUG_IPSET_COMPL=Y
@@ -173,48 +258,50 @@ if [[ $_DEBUG_IPSET_COMPL ]]; then
 	printf "COMP_CWORD: <%s>\n" "$COMP_CWORD"
 	printf "COMP_WORDS:\n"
 	printf "<%s>\n" "${COMP_WORDS[@]}"
+	printf "cword: <%s>\n" "$cword"
 	printf "cur: <%s> prev: <%s>\n" "$cur" "$prev"
 fi
 
 # collect information about used options
-for ((i=1; i < ${#COMP_WORDS[@]}; i++)); do
-	case "${COMP_WORDS[i]}" in
+for ((i=1; i < ${#words[@]}; i++)); do
+	case "${words[i]}" in
 		@(create|n|add|del|test|destroy|x|list|save|restore|flush|rename|e|swap|w|help|version))
-			[[ ${COMP_WORDS[i-1]} = @(-f|-file) ]] && continue # there could be a file named like a command
+			[[ ${words[i-1]} = @(-f|-file) ]] && continue # there could be a file named like a command
 			if ! ((got_action)); then
-				if [[ ${COMP_WORDS[i]} = @(create|n|add|del|test|rename|e|swap|w) ]]; then
-					for x in ${!arr_opts[@]}; do set -- ${arr_opts[x]}
-						[[ ${COMP_WORDS[i+1]} = @($1|$2) ]] && return 0 # sets with names of options 
-					done
-				fi
-				if [[ ${COMP_WORDS[i]} != save ]]; then
-					got_action=1 action_index=$i str_action=${COMP_WORDS[i]}
-				elif [[ ${COMP_WORDS[i-1]} != @(-o|-output) ]]; then
-					got_action=1 action_index=$i str_action=${COMP_WORDS[i]}
+				if [[ ${words[i]} != save ]]; then
+					got_action=1 action_index=$i str_action=${words[i]}
+				elif [[ ${words[i-1]} != @(-o|-output) ]]; then
+					got_action=1 action_index=$i str_action=${words[i]}
 				fi
 				if [[ $str_action = @(create|n|add|del|test|destroy|x|list|save|restore|flush|rename|e|swap|w) ]]
-				then str_setname=${COMP_WORDS[i+1]} # register the set name
+				then str_setname=${words[i+1]} # register the set name
 				fi
 			fi
 		;;
 		-\!|-exist)
-			[[ ${COMP_WORDS[i]} != $cur ]] && [[ ${COMP_WORDS[i-1]} != @(-f|-file) ]] && ignore_errors=1 arr_used_opts[${#arr_used_opts[@]}]=${COMP_WORDS[i]}
+			[[ ${words[i]} != $cur ]] && [[ ${words[i-1]} != @(-f|-file) ]] &&\
+			   	ignore_errors=1 arr_used_opts[${#arr_used_opts[@]}]=${words[i]}
 		;;
 		-f|-file)
-			[[ ${COMP_WORDS[i]} != $cur ]] && [[ ${COMP_WORDS[i-1]} != @(-f|-file) ]] && use_file=1 str_filename="${COMP_WORDS[i+1]}" arr_used_opts[${#arr_used_opts[@]}]=${COMP_WORDS[i]}
+			[[ ${words[i]} != $cur ]] && [[ ${words[i-1]} != @(-f|-file) ]] &&\
+			   	use_file=1 str_filename="${words[i+1]}" \
+		   		arr_used_opts[${#arr_used_opts[@]}]=${words[i]}
 		;;
 		-n|-name)
-			[[ ${COMP_WORDS[i]} != $cur ]] && [[ ${COMP_WORDS[i-1]} != @(-f|-file) ]] && names_only=1 arr_used_opts[${#arr_used_opts[@]}]=${COMP_WORDS[i]}
+			[[ ${words[i]} != $cur ]] && [[ ${words[i-1]} != @(-f|-file) ]] &&\
+			   names_only=1 arr_used_opts[${#arr_used_opts[@]}]=${words[i]}
 		;;
 		-t|-terse)
-			[[ ${COMP_WORDS[i]} != $cur ]] && [[ ${COMP_WORDS[i-1]} != @(-f|-file) ]] && headers_only=1 arr_used_opts[${#arr_used_opts[@]}]=${COMP_WORDS[i]}
+			[[ ${words[i]} != $cur ]] && [[ ${words[i-1]} != @(-f|-file) ]] &&\
+				headers_only=1 arr_used_opts[${#arr_used_opts[@]}]=${words[i]}
 		;;
 		-o|-output)
-			[[ ${COMP_WORDS[i]} = $cur ]] && continue
-			if [[ ${COMP_WORDS[i-1]} != @(-f|-file) ]]; then arr_used_opts[${#arr_used_opts[@]}]=${COMP_WORDS[i]}
+			[[ ${words[i]} = $cur ]] && continue
+			if [[ ${words[i-1]} != @(-f|-file) ]]; then
+				arr_used_opts[${#arr_used_opts[@]}]=${words[i]}
 				if [[ $prev = @(-o|-output) ]]; then
 					save_format=2 # expecting opt-arg
-				elif [[ ${COMP_WORDS[i+1]} = save ]]; then
+				elif [[ ${words[i+1]} = save ]]; then
 					save_format=3 # no -n/-t with -o save
 				else
 					save_format=1
@@ -222,25 +309,32 @@ for ((i=1; i < ${#COMP_WORDS[@]}; i++)); do
 			fi
 		;;
 		-r|-resolve|-s|-sorted)
-			[[ ${COMP_WORDS[i]} != $cur ]] && [[ ${COMP_WORDS[i-1]} != @(-f|-file) ]] && res_sort=1 arr_used_opts[${#arr_used_opts[@]}]=${COMP_WORDS[i]}
+			[[ ${words[i]} != $cur ]] && [[ ${words[i-1]} != @(-f|-file) ]] &&\
+				res_sort=1 arr_used_opts[${#arr_used_opts[@]}]=${words[i]}
+		;;
+		-q|-quiet)
+			arr_used_opts[${#arr_used_opts[@]}]=${words[i]}
 		;;
 		-?*)
-			if [[ ${COMP_WORDS[i]#-} != @(q|quiet) ]]; then
-				if [[ ${COMP_WORDS[i-1]} != @(-f|-file|\>) || ${COMP_WORDS[i+1]} != \< ]]; then # don't include filenames
-					arr_unknown_opts[${#arr_unknown_opts[@]}]="${COMP_WORDS[i]}"
+			if [[ ${words[i]#-} != @(q|quiet) ]]; then
+				# don't include filenames
+				if [[ ${words[i-1]} != @(-f|-file|\>) || ${words[i+1]} != \< ]]; then
+					arr_unknown_opts[${#arr_unknown_opts[@]}]="${words[i]}"
 				fi
 			fi
 		;;
-#		before|after)
-#			if ((got_action && ! order_index && i == action_index+3)); then
-#				order_index=$i str_order=""
-#			fi
-#		;;
-		@(timeout|range|maxelem|family|hashsize|size|netmask|nomatch|before|after))
-			str_tmp="$COMP_LINE"
-			[[ $str_setname = ${COMP_WORDS[i]} ]] && str_tmp="${str_tmp/${COMP_WORDS[i]}/}"
-			[[ $str_filename = ${COMP_WORDS[i]} ]] && str_tmp="${str_tmp/${COMP_WORDS[i]}/}"
-			[[ $str_tmp = *${COMP_WORDS[i]}* ]] && arr_dupe_cmd_opts[${#arr_dupe_cmd_opts[@]}]="${COMP_WORDS[i]}"
+		before|after)
+			if ((got_action && ! order_index && i == action_index+3)); then
+				order_index=$i str_order=""
+			fi
+		;;
+		timeout|range|maxelem|family|hashsize|size|netmask|nomatch)
+			if ((got_action && i > action_index+2)); then
+				str_tmp="$COMP_LINE"
+				[[ $str_setname = ${words[i]} ]] && str_tmp="${str_tmp/${words[i]}/}"
+				[[ $str_filename = ${words[i]} ]] && str_tmp="${str_tmp/${words[i]}/}"
+				[[ $str_tmp = *${words[i]}* ]] && arr_dupe_cmd_opts[${#arr_dupe_cmd_opts[@]}]="${words[i]}"
+			fi
 		;;
 	esac
 done
@@ -258,6 +352,7 @@ if [[ $_DEBUG_IPSET_COMPL ]]; then
 	printf "headers_only: <%s>\n" "$headers_only"
 	printf "arr_unknown_opts: <%s>\n" "${arr_unknown_opts[@]}"
 	printf "arr_used_opts: <%s>\n" "${arr_used_opts[@]}"
+	printf "arr_dupe_cmd_opts: <%s>\n" "${arr_dupe_cmd_opts[@]}"
 fi
 
 # invalid combination of options
@@ -273,290 +368,12 @@ elif ((ignore_errors)); then
 	fi
 fi
 
-# for help or create, find supported set types and save them into an array
-if [[ $str_action = @(help|create|n) ]]; then i=0
-	while read -r; do
-		[[ $REPLY = "Supported set types:"* ]] && ((!i)) && i=1 && continue
-		((i)) || continue
-		if [[ $REPLY = *:* ]]; then
-			set -- $REPLY
-			arr_types[${#arr_types[@]}]="$1"
-		fi
-	done < <(ipset help)
-	for i in ${!arr_types[@]}; do # remove dupe entries
-		for ((x=i+1; x < ${#arr_types[@]}; x++)); do
-			if [[ ${arr_types[i]} = ${arr_types[x]} ]]; then
-				unset arr_types[x]
-			fi
-		done
-	done
-fi
-
-
-case "$cur" in
-	-*) # any option is requested
-		case "$prev" in
-			-)
-				# interactive mode (don't complete on anything further)
-				[[ ${COMP_WORDS[1]} = - ]] && return 0
-				if ((got_action)); then
-					case "$str_action" in
-						create|n) # if users wants to create a set named `-'
-							if [[ ${COMP_WORDS[action_index+1]} = - ]]; then
-								COMPREPLY=( $( compgen -W '${arr_types[@]}' -- $cur ) )
-								return 0
-							fi
-						;;
-						@(add|del|test))
-							if [[ ${COMP_WORDS[action_index+3]} = @(before|after) && ${COMP_WORDS[action_index+4]} = - ]]; then
-								_ipset_get_members --names-only "$str_setname"
-								for x in ${!arr_sets[@]}; do
-									[[ ${arr_sets[x]} = $str_setname ]] && continue
-									for y in ${!arr_members[@]}; do
-										[[ ${arr_sets[x]} = ${arr_members[y]} ]] && continue 2
-									done
-									arr_tmp[${#arr_tmp[@]}]="${arr_sets[x]}"
-								done
-								COMPREPLY=( $( compgen -W '${arr_tmp[@]}' -- $cur ) )
-							fi
-						;;
-					esac
-				fi
-			;;
-		esac
-	;;
-	*)
-		case "$prev" in
-			-)
-				# interactive mode (don't complete on anything further)
-				[[ ${COMP_WORDS[1]} = - ]] && return 0
-				if ((got_action)); then
-					if _ipset_is_set -; then # check if we have a set named `-'
-						if [[ $str_action = @(add|del|test) ]]; then
-							str_tmp=$(_ipset_get_set_type "$str_setname")
-							if [[ ${COMP_WORDS[action_index+2]} = - ]]; then
-								case "$str_tmp" in
-									list:*) arr_tmp=()
-										COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts before after)' -- $cur ) )
-										return 0
-									;;
-								esac
-							elif [[ ${COMP_WORDS[action_index+3]} = @(before|after) && ${COMP_WORDS[action_index+4]} = - ]]; then
-								_ipset_get_members --names-only "$str_setname"
-								for x in ${!arr_sets[@]}; do
-									[[ ${arr_sets[x]} = $str_setname ]] && continue
-									for y in ${!arr_members[@]}; do
-										[[ ${arr_sets[x]} = ${arr_members[y]} ]] && continue 2
-									done
-									arr_tmp[${#arr_tmp[@]}]="${arr_sets[x]}"
-								done
-								COMPREPLY=( $( compgen -W '${arr_tmp[@]}' -- $cur ) )
-							fi
-						elif [[ $str_action = @(swap|w) && $prev = $str_setname ]]; then
-							:
-#						COMPREPLY=( $( compgen -W '${arr_sets[*]/$str_setname/}' -- $cur ) )
-						elif [[ $str_action != @(create|n) ]]; then
-							return 0
-#					else
-#						return 0
-						fi
-					fi
-				else
-					return 0
-				fi
-			;;
-		esac
-	;;
-esac
-
-case "$cur" in
-	-*) # any option is requested
-		if ((save_format == 2)); then
-			return 0
-		fi
-		if [[ $str_action = @(create|n) && $prev = $str_setname ]]; then
-			return 0 # expecting completion of set types
-		fi
-		case "$prev" in
-			create|n) # -option not expected
-				if ((got_action)) && [[ $str_action = $prev ]] && [[ $str_filename != $prev ]]; then
-					return 0
-				fi
-			;;
-			add|del|list|test|rename|e|destroy|x|flush|swap|w) # -option not expected
-				# check if we have a set beginning with `-'
-				if ((got_action)) && [[ $str_action = $prev ]]; then
-					if _ipset_is_set "${cur}*"; then
-						COMPREPLY=( $( compgen -W '${arr_sets[@]}' -- $cur ) )
-					fi
-					return 0
-				fi
-			;;
-			\<|\>|-f|-file) # expecting filenames as completion
-				compopt -o nospace
-				COMPREPLY=( $( compgen -f -- $cur ) )
-				return 0
-			;;
-		esac
-		if ((got_action)); then
-			case "$str_action" in
-				help|version) COMPREPLY=()
-					return 0
-				;;
-				destroy|x|flush) COMPREPLY=( $( compgen -W '-q -quiet' -- $cur ) ) ;;
-				restore) COMPREPLY=( $( compgen -W '-\! -exist -f -file -q -quiet' -- $cur ) ) ;;
-				save) COMPREPLY=( $( compgen -W '-f -file -q -quiet' -- $cur ) ) ;;
-				create|n|add|del)
-					if [[ ${COMP_WORDS[action_index+2]} = -* && $prev = $str_setname ]]; then
-						if [[ $str_action = @(add|del) && $(_ipset_get_set_type "$str_setname") = list:* ]]; then
-							if _ipset_is_set "${cur}*"; then
-								COMPREPLY=( $( compgen -W '${arr_sets[@]}' -- $cur ) )
-							fi
-						fi
-						return 0
-					fi
-					if [[ $str_action = @(create|n) ]]; then
-						if [[ $prev = @(timeout|range|maxelem|family|hashsize|size|netmask) ]]; then
-							return 0
-						fi
-					elif [[ $str_action = add ]]; then
-						if [[ $prev = timeout ]]; then # TODO: support setname of 'timeout'
-							return 0
-						elif [[ $prev = @(before|after) ]]; then
-							# completion on list:* set members starting with a dash
-							str_tmp=$(_ipset_get_set_type "$str_setname")
-							case "$str_tmp" in
-								list:*) arr_tmp=()
-									_ipset_get_members --names-only "$str_setname"
-									COMPREPLY=( $( compgen -W '${arr_members[@]}' -- $cur ) )
-									return 0
-								;;
-							esac
-							return 0
-						fi
-					elif [[ $str_action = del ]]; then
-						if [[ $prev = @(before|after) ]]; then
-							# completion on list:* set members starting with a dash
-							str_tmp=$(_ipset_get_set_type "$str_setname")
-							case "$str_tmp" in
-								list:*) arr_tmp=()
-									_ipset_get_members --names-only "$str_setname"
-									COMPREPLY=( $( compgen -W '${arr_members[@]}' -- $cur ) )
-									return 0
-								;;
-							esac
-							return 0
-						fi
-					fi
-					for ((i=$action_index+1; i < ${#COMP_WORDS[@]}; i++)); do
-						# option not expected, want command value
-						if [[ ${COMP_WORDS[i]} = @(timeout|maxelem|hashsize|size) && ${COMP_WORDS[i+1]} != @(+([[:digit:]])|0x+([[:xdigit:]])) ]]
-						then return 0 # option argument validation
-						elif [[ ${COMP_WORDS[i]} = range ]]; then
-							case "$str_tmp" in # option argument validation
-								bitmap:port)
-									[[ ${COMP_WORDS[x+1]} && ${COMP_WORDS[x+1]} != *-* ]] && return 0
-								;;
-								*)
-									[[ ${COMP_WORDS[x+1]} && ${COMP_WORDS[x+1]} != @(*-*|*/+([[:digit:]])) ]] && return 0
-								;;
-							esac
-						elif [[ ${COMP_WORDS[i]} = family && ${COMP_WORDS[i+1]} != inet?(6) ]]
-						then return 0 # option argument validation
-						fi
-					done
-					COMPREPLY=( $( compgen -W '-\! -exist -q -quiet' -- $cur ) )
-				;;
-				list)
-					if ((names_only || headers_only)); then
-						COMPREPLY=( $( compgen -W '-f -file -o -output -q -quiet' -- $cur ) )
-					elif ((res_sort)); then
-						COMPREPLY=( $( compgen -W '-f -file -o -output -q -quiet -r -resolve -s -sorted' -- $cur ) )
-					elif ((save_format == 1)); then
-						COMPREPLY=( $( compgen -W '-f -file -q -quiet -r -resolve -s -sorted -t -terse' -- $cur ) )
-					elif ((save_format == 3)); then
-						COMPREPLY=( $( compgen -W '-f -file -q -quiet -r -resolve -s -sorted' -- $cur ) )
-					else
-						COMPREPLY=( $( compgen -W '-f -file -n -name -o -output -q -quiet -r -resolve -s -sorted -t -terse' -- $cur ) )
-					fi
-				;;
-				rename|e|swap|w|test)
-					# option not expected, want command value
-					# TODO: clean up, catch all those dash cases before option request
-					if [[ ${COMP_WORDS[action_index+2]} = -* ]] && ((${#COMP_WORDS[@]}-1 <= action_index+2)); then # TODO: still need real $cur/$prev index
-						if [[ $str_action = @(swap|w) && -z ${COMP_WORDS[action_index+3]} ]]; then
-							if _ipset_is_set "${cur}*"; then
-								COMPREPLY=( $( compgen -W '${arr_sets[@]/$str_setname/}' -- $cur ) )
-								return 0
-							fi
-						elif [[ $str_action = test ]]; then
-							if [[ $(_ipset_get_set_type "$str_setname") = list:* ]]; then
-								if _ipset_is_set "${cur}*"; then
-									COMPREPLY=( $( compgen -W '${arr_sets[@]}' -- $cur ) )
-									return 0
-								fi
-							fi
-							if [[ $prev = @(before|after) ]]; then
-								# completion on list:* set members starting with a dash
-								str_tmp=$(_ipset_get_set_type "$str_setname")
-								case "$str_tmp" in
-									list:*) arr_tmp=()
-										_ipset_get_members --names-only "$str_setname"
-										COMPREPLY=( $( compgen -W '${arr_members[@]}' -- $cur ) )
-										return 0
-									;;
-								esac
-								return 0
-							fi
-						fi
-					elif [[ ${COMP_WORDS[action_index+4]} = -* ]] && ((${#COMP_WORDS[@]}-1 <= action_index+4)); then
-						if [[ $str_action = test ]]; then
-							if [[ $(_ipset_get_set_type "$str_setname") = list:* ]]; then
-								if _ipset_is_set "${cur}*"; then
-									COMPREPLY=( $( compgen -W '${arr_sets[@]}' -- $cur ) )
-									return 0
-								fi
-							fi
-							if [[ $prev = @(before|after) ]]; then
-								# completion on list:* set members starting with a dash
-								str_tmp=$(_ipset_get_set_type "$str_setname")
-								case "$str_tmp" in
-									list:*) arr_tmp=()
-										_ipset_get_members --names-only "$str_setname"
-										COMPREPLY=( $( compgen -W '${arr_members[@]}' -- $cur ) )
-										return 0
-									;;
-								esac
-								return 0
-							fi
-						fi
-					fi
-					COMPREPLY=( $( compgen -W '-q -quiet' -- $cur ) )
-				;;
-			esac
-		else COMPREPLY=( $( compgen -W '- ${arr_opts[@]}' -- $cur ) )
-			if ((names_only || headers_only)) && ((save_format == 1)); then
-				COMPREPLY=( $( compgen -W '-f -file -q -quiet' -- $cur ) )
-			elif ((names_only || headers_only)); then
-				COMPREPLY=( $( compgen -W '-f -file -o -output -q -quiet' -- $cur ) )
-			elif ((res_sort)); then
-				COMPREPLY=( $( compgen -W '-f -file -o -output -q -quiet -r -resolve -s -sorted' -- $cur ) )
-			elif ((save_format == 1)); then
-				COMPREPLY=( $( compgen -W '-f -file -q -quiet -r -resolve -s -sorted -t -terse' -- $cur ) )
-			elif ((save_format == 3)); then
-				COMPREPLY=( $( compgen -W '-f -file -q -quiet -r -resolve -s -sorted' -- $cur ) )
-			elif ((ignore_errors)); then
-				COMPREPLY=( $( compgen -W '-f -file -q -quiet' -- $cur ) )
-			elif ((use_file)); then
-				COMPREPLY=( $( compgen -W '-\! -exist -n -name -o -output -q -quiet -r -resolve -s -sorted -t -terse' -- $cur ) )
-			fi
-		fi
-	;;
-	\<|\>) # redirection operator
-		compopt -o nospace
-		COMPREPLY=( $( compgen -f ) ) # no $cur, so completion starts without space after redirection
-		return 0
-	;;
+case "$cur" in # depend on current
+#	\<|\>) # redirection operator
+#		compopt -o nospace
+#		COMPREPLY=( $( compgen -f ) ) # no $cur, so completion starts without space after redirection
+#		return 0
+#	;;
 	\$\{*) # variables with a leading `${'
 		COMPREPLY=( $(compgen -v -P '${' -S '}' ${cur#??}) )
 		return 0
@@ -565,349 +382,326 @@ case "$cur" in
 		COMPREPLY=( $(compgen -v -P '$' ${cur#?} ) )
 		return 0
 	;;
-	*) # not an option
-		if ((got_action)); then arr_sets=( $(ipset list -n ) )
+esac
+case "$prev" in # depend on previous option
+	-o|-output)
+		# make sure it's not a filename named -o or -output
+		if [[ $str_filename != $prev ]]; then
+			if ((names_only || headers_only)); then
+				COMPREPLY=( $( compgen -W 'plain xml' -- $cur ) )
+			else
+				COMPREPLY=( $( compgen -W 'plain save xml' -- $cur ) )
+			fi
+			return 0
+		fi
+	;;
+	-f|-file|\<|\>)
+		if ((got_bashcompl)); then
+			_filedir
+		else
+			compopt -o nospace
+			COMPREPLY=( $( compgen -f -- $cur ) )
+		fi
+		return 0
+	;;
+esac
+
+if ((got_action)); then # we got the main action
+	# Disallow sets with names of options starting with a hyphen
+	if [[ $str_setname = -?* && $cur != -?* && $str_action = @(create|n|add|del|test|rename|e|swap|w) ]]
+	then
+		for x in ${!arr_opts[@]}; do set -- ${arr_opts[x]}
+			[[ $str_setname = @($1|$2) ]] && return 0
+		done
+	fi
+	if ((cword == action_index+1)) && [[ $str_action = $prev ]]; then
+		# depend on previous option which should be the action
+		# all are terminating conditions
+		case "$str_action" in
+#			create|n|version) :
+#			;;
+			help)
+				_ipset_get_supported_types
+				COMPREPLY=( $( compgen -W '${arr_types[@]}' -- $cur ) )
+				_ipset_colon_ltrim "$cur"
+			;;
+			add|del|rename|e|swap|w|test)
+				COMPREPLY=( $( compgen -W '$(ipset list -n )' -- $cur ) )
+				_ipset_colon_ltrim "$cur"
+			;;
+			list)
+				# we don't know if its an option request, could also be a set
+			   	# named `-*', if the latter is true, show sets and options
+				if [[ $cur = -* ]]; then
+					_ipset_get_options
+					if _ipset_is_set "${cur}*"; then
+						for i in ${!arr_sets[@]}; do
+							[[ ${arr_sets[i]} = $cur* ]] && COMPREPLY[${#COMPREPLY[@]}]="${arr_sets[i]}"
+						done
+						_ipset_colon_ltrim "$cur"
+					fi
+				else
+					COMPREPLY=( $( compgen -W '$(ipset list -n )' -- $cur ) )
+					_ipset_colon_ltrim "$cur"
+				fi
+			;;
+			flush|save|destroy|x)
+				# we don't know if its an option request, could also be a set
+			   	# named `-*', if the latter is true, show sets and options
+				if [[ $cur = -* ]]; then
+					_ipset_get_options
+					if _ipset_is_set "${cur}*"; then
+						for i in ${!arr_sets[@]}; do
+							[[ ${arr_sets[i]} = $cur* ]] && COMPREPLY[${#COMPREPLY[@]}]="${arr_sets[i]}"
+						done
+						_ipset_colon_ltrim "$cur"
+					fi
+				else
+					COMPREPLY=( $( compgen -W '$(ipset list -n )' -- $cur ) )
+					_ipset_colon_ltrim "$cur"
+				fi
+			;;
+			restore)
+				if [[ $cur = -* ]]; then
+					_ipset_get_options
+				elif ! [[ $str_filename ]]; then
+					# don't show redirector if we have option -f
+					COMPREPLY=( \< )
+				fi
+			;;
+		esac
+	elif ((cword == action_index+2)) && [[ $str_setname = $prev ]]; then
+		case "$str_action" in
+#			rename|e) :
+#			;;
+			save|restore|list|flush|destroy|x)
+				if [[ $cur = -* ]]; then
+					_ipset_get_options
+				fi
+			;;
+			@(create|n))
+				_ipset_get_supported_types
+				COMPREPLY=( $( compgen -W '${arr_types[@]}' -- $cur ) )
+				_ipset_colon_ltrim "$cur"
+			;;
+			@(swap|w)) # list two sets
+				arr_sets=( $(ipset list -n ) )
+				COMPREPLY=( $( compgen -W '${arr_sets[@]}' -- $cur ) ) 
+				for i in ${!COMPREPLY[@]}; do # remove the dupe setname from the list
+					[[ ${COMPREPLY[i]} = $str_setname ]] && unset COMPREPLY[i] && break
+				done
+				_ipset_colon_ltrim "$cur"
+			;;
+			add) # show sets if the set to add is of type list:set
+				str_tmp=$(_ipset_get_set_type "$str_setname")
+				case "$str_tmp" in
+					list:*) arr_tmp=() arr_sets=( $(ipset list -n ) )
+						_ipset_get_members --names-only "$str_setname"
+						for x in ${!arr_sets[@]}; do
+							[[ ${arr_sets[x]} = $str_setname ]] && continue
+							for y in ${!arr_members[@]}; do
+								[[ ${arr_sets[x]} = ${arr_members[y]} ]] && continue 2
+							done
+							arr_tmp[${#arr_tmp[@]}]="${arr_sets[x]}"
+						done
+						COMPREPLY=( $( compgen -W '${arr_tmp[@]}' -- $cur ) )
+						_ipset_colon_ltrim "$cur"
+					;;
+				esac
+			;;
+			del|test) # complete members
+				_ipset_get_members --names-only "$str_setname"
+				COMPREPLY=( $( compgen -W '${arr_members[@]}' -- $cur ) )
+			;;
+		esac
+	elif ((cword == action_index+3)) && [[ $cur != -* ]]; then
+		case "$str_action" in
+			add)
+				str_tmp=$(_ipset_get_set_type "$str_setname")
+				if _ipset_set_has_timout "$str_setname"; then
+					str_timeout=timeout
+				else
+					str_timeout=""
+				fi
+				case "$str_tmp" in
+					hash:*net*)
+						COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts $str_timeout nomatch)' -- $cur ) )
+					;;
+					hash:*!(net)*|bitmap:*)
+						COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts $str_timeout)' -- $cur ) )
+					;;
+					list:*)
+						COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts $str_order $str_timeout)' -- $cur ) )
+					;;
+				esac
+			;;
+			create|n)
+				case "$prev" in
+					hash:*)
+						COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts family hashsize timeout maxelem)' -- $cur ) )
+					;;
+					bitmap:ip)
+						COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts range netmask timeout)' -- $cur ) )
+					;;
+					bitmap:!(ip)?*)
+						COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts range timeout)' -- $cur ) )
+					;;
+					list:*)
+						COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts size timeout)' -- $cur ) )
+					;;
+				esac
+			;;
+			del|test)
+				str_tmp=$(_ipset_get_set_type "$str_setname")
+				if [[ $str_tmp = list:* ]]; then
+					COMPREPLY=( $( compgen -W '$str_order' -- $cur ) )
+				fi
+			;;
+		esac
+	elif ((cword == action_index+3)) && [[ $cur = -* ]]; then
+		_ipset_get_options
+	elif ((cword >= action_index+4)); then # add options following
+		if [[ $cur = -* && $prev != @(timeout|hashsize|size|family|maxelem|range|netmask|before|after) ]]
+		then _ipset_get_options
+		fi
+		case "$str_action" in
+			add)
+				str_tmp=$(_ipset_get_set_type "$str_setname")
+				if _ipset_set_has_timout "$str_setname"; then
+					str_timeout=timeout
+				else
+					str_timeout=""
+				fi
+				for ((x=$action_index+3; x < ${#words[@]}; x++)); do # validate option argument values
+					[[ ${words[x]} = timeout && ${words[x+1]} != @(+([[:digit:]])|0x+([[:xdigit:]])) ]] && return 0
+				done
+				case "$str_tmp" in
+					hash:*net*)
+						if [[ $prev != timeout ]]; then
+							COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts $str_timeout nomatch)' -- $cur ) )
+						fi
+					;;
+					list:*)
+						if [[ $prev = @(before|after) ]] && ((cword-1 == order_index)); then
+							_ipset_get_members --names-only "$str_setname"
+							COMPREPLY=( $( compgen -W '${arr_members[@]}' -- $cur ) )
+							_ipset_colon_ltrim "$cur"
+						elif [[ $prev != timeout ]]; then
+							COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts $str_order $str_timeout)' -- $cur ) )
+						fi
+					;;
+				esac
+			;;
+			create|n)
+				for ((x=$action_index+3; x < ${#words[@]}; x++)); do
+					if [[ ${words[x+1]} && ${words[x+1]} != $cur ]]; then
+						case "${words[x]}" in # validate option argument values
+							@(hashsize|timeout|size|maxelem))
+								[[ ${words[x+1]} != @(+([[:digit:]])|0x+([[:xdigit:]])) ]] && return 0
+							;;
+							family)
+								[[ ${words[x+1]} != inet?(6) ]] && return 0
+							;;
+							range)
+								case "$str_tmp" in
+									bitmap:port)
+										[[ ${words[x+1]} != *-* ]] && return 0
+									;;
+									*)
+										[[ ${words[x+1]} != @(*-*|*/+([[:digit:]])) ]] && return 0
+									;;
+								esac
+							;;
+						esac
+					fi
+				done
+				case "${words[action_index+2]}" in # must be the set type
+					hash:*)
+						if [[ $prev = family ]]; then
+							COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts inet inet6)' -- $cur ) )
+						elif [[ $prev != @(family|hashsize|timeout|maxelem) ]]; then
+							COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts family hashsize timeout maxelem)' -- $cur ) )
+						fi
+					;;
+					bitmap:ip)
+						if [[ $prev != @(range|netmask|timeout) ]]; then
+							COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts range netmask timeout)' -- $cur ) )
+						fi
+					;;
+					bitmap:!(ip)?*)
+						if [[ $prev != @(range|timeout) ]]; then
+							COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts range timeout)' -- $cur ) )
+						fi
+					;;
+					list:*)
+						if [[ $prev != @(size|timeout) ]]; then
+							COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts size timeout)' -- $cur ) )
+						fi
+					;;
+				esac
+			;;
+			del|test)
+				str_tmp=$(_ipset_get_set_type "$str_setname")
+				case "$str_tmp" in
+					list:*) arr_tmp=()
+						_ipset_get_members --names-only "$str_setname"
+						if [[ $prev = @(before|after) ]] && ((cword-1 == order_index)); then
+							case "$prev" in
+								before)
+									for x in ${!arr_members[@]}; do
+										if [[ ${arr_members[x]} = ${words[action_index+2]} ]]; then
+											if [[ ${arr_members[x+1]} ]]; then
+												arr_tmp[${#arr_tmp[@]}]=${arr_members[x+1]}
+												break
+											fi
+										fi
+									done
+									;;
+								after)
+									for x in ${!arr_members[@]}; do
+										if [[ ${arr_members[x]} = ${words[action_index+2]} ]]; then
+											if ((x>0)) && [[ ${arr_members[x-1]} ]]; then
+												arr_tmp[${#arr_tmp[@]}]=${arr_members[x-1]}
+												break
+											fi
+										fi
+									done
+									;;
+							esac
+							COMPREPLY=( $( compgen -W '${arr_tmp[@]}' -- $cur ) )
+							_ipset_colon_ltrim "$cur"
+						fi
+					;;
+				esac
+			;;
+		esac
+	fi
+else # we don't have the main action yet
+	if [[ $prev = - ]] && ((cword == 2)); then
+		return 0 # interactive mode, don't complete on anything further
+	fi
+	if [[ $cur = -* ]]; then # any option is requested
+		_ipset_get_options
+	else
+		# we don't have the action yet, check options to display appropiate actions
+		if ((save_format || names_only || headers_only)); then
+			COMPREPLY=( $( compgen -W 'list' -- $cur ) )
+		elif ((res_sort)); then
+			COMPREPLY=( $( compgen -W 'list save' -- $cur ) )
+		elif ((ignore_errors && use_file)); then
+			COMPREPLY=( $( compgen -W 'restore' -- $cur ) )
+		elif ((ignore_errors)); then
+			COMPREPLY=( $( compgen -W 'create n add del restore' -- $cur ) )
+		elif ((use_file)); then
+			COMPREPLY=( $( compgen -W 'list save restore' -- $cur ) )
 		else
 		COMPREPLY=( $( compgen -W 'create n add del test destroy x list save restore flush rename e swap w help version' -- $cur ) )
 		fi
-	   	if ((got_action)) && [[ $str_action = $prev ]]; then
-			# depend on previous option which should be the action
-			# all are terminating conditions
-			case "$str_action" in
-				create|n|version) COMPREPLY=()
-					return 0
-				;;
-				help)
-					COMPREPLY=( $( compgen -W '${arr_types[@]}' -- $cur ) )
-					return 0
-				;;
-				add|del|destroy|x|list|rename|e|swap|w|test)
-					COMPREPLY=( $( compgen -W '${arr_sets[@]}' -- $cur ) )
-					return 0
-				;;
-				restore)
-					if ! [[ $str_filename ]]; then
-						# don't show redirector if we have option -f
-						COMPREPLY=( \< )
-					fi
-					return 0
-				;;
-				save)
-					if [[ $str_action = save ]]; then
-						COMPREPLY=( $( compgen -W '${arr_sets[@]}' -- $cur ) ) 
-						return 0
-					else
-						if ((save_format == 3 && ! got_action)); then
-							COMPREPLY=( $( compgen -W 'list' -- $cur ) )
-							return 0
-						fi
-					fi
-				;;
-			esac
-		fi
-		case "$prev" in # depend on previous option
-			-o|-output)
-				# make sure it's not a filename named -o or -output
-				if [[ $str_filename != $prev ]]; then
-					if ((names_only || headers_only)); then
-						COMPREPLY=( $( compgen -W 'plain xml' -- $cur ) )
-					else
-						COMPREPLY=( $( compgen -W 'plain save xml' -- $cur ) )
-					fi
-					return 0
-				fi
-			;;
-			-f|-file|\<|\>) compopt -o nospace
-				COMPREPLY=( $( compgen -f -- $cur ) )
-				return 0
-			;;
-			$str_setname)
-				case "$str_action" in
-					@(create|n))
-						COMPREPLY=( $( compgen -W '${arr_types[@]}' -- $cur ) )
-						return 0
-					;;
-					@(swap|w)) # list two sets
-						COMPREPLY=( $( compgen -W '${arr_sets[@]/$str_setname/}' -- $cur ) ) 
-					;;
-					add) # only list sets after the action command
-						str_tmp=$(_ipset_get_set_type "$str_setname")
-						case "$str_tmp" in
-							list:*) arr_tmp=()
-								_ipset_get_members --names-only "$str_setname"
-								for x in ${!arr_sets[@]}; do
-									[[ ${arr_sets[x]} = $str_setname ]] && continue
-									for y in ${!arr_members[@]}; do
-										[[ ${arr_sets[x]} = ${arr_members[y]} ]] && continue 2
-									done
-									arr_tmp[${#arr_tmp[@]}]="${arr_sets[x]}"
-								done
-								COMPREPLY=( $( compgen -W '${arr_tmp[@]}' -- $cur ) )
-								return 0
-							;;
-						esac
-					;;
-					del|test) COMPREPLY=() # complete members
-						_ipset_get_members --names-only "$str_setname"
-						COMPREPLY=( $( compgen -W '${arr_members[@]}' -- $cur ) )
-						return 0
-					;;
-				esac
-			;;
-			*)
-			if ((got_action)); then
-#				COMPREPLY=( $( compgen -W '${arr_sets[@]}' -- $cur ) )
-				case "$str_action" in
-					restore) # not a redirecton
-					;;
-					help)
-						if [[ ${COMP_WORDS[action_index+1]} ]]; then 
-							COMPREPLY=() # don't go further than showing the set types
-							return 0
-						fi
-					;;
-					add)
-						str_tmp=$(_ipset_get_set_type "${COMP_WORDS[action_index+1]}")
-						if [[ ${COMP_WORDS[action_index+2]} = $prev ]]; then # add options
-							case "$str_tmp" in
-								hash:*net*)
-									COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts timeout nomatch)' -- $cur ) )
-								;;
-								hash:*!(net)*|bitmap:*)
-									COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts timeout)' -- $cur ) )
-								;;
-								list:*)
-									COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts before after timeout)' -- $cur ) )
-								;;
-							esac
-						else # add options following
-							for ((x=$action_index+3; x < ${#COMP_WORDS[@]}; x++)); do # valide option argument values
-								[[ ${COMP_WORDS[x]} = timeout && ${COMP_WORDS[x+1]} != @(+([[:digit:]])|0x+([[:xdigit:]])) ]] && return 0
-							done
-							for ((x=$action_index+2; x < $action_index+6; x++)); do
-								if [[ ${COMP_WORDS[x]} = $prev ]]; then
-									case "$str_tmp" in
-										hash:*net*)
-											if [[ $prev != @(-q|-quiet|-\!|-exist|timeout) ]]; then
-												COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts timeout nomatch)' -- $cur ) )
-											fi
-										;;
-										list:*)
-											if [[ $prev = @(before|after) ]]; then
-												_ipset_get_members --names-only "$str_setname"
-												COMPREPLY=( $( compgen -W '${arr_members[@]}' -- $cur ) )
-											elif [[ $prev != @(-q|-quiet|-\!|-exist|timeout) ]]; then
-												COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts before after timeout)' -- $cur ) )
-											fi
-										;;
-									esac
-								fi
-							done
-						fi
-					;;
-					create|n)
-						if [[ ${COMP_WORDS[action_index+2]} = $prev ]]; then # create options
-							case "$prev" in
-								hash:*)
-#									COMPREPLY=( $( compgen -W 'family hashsize timeout maxelem' -- $cur ) )
-									COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts family hashsize timeout maxelem)' -- $cur ) )
-								;;
-								bitmap:ip)
-									COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts range netmask timeout)' -- $cur ) )
-								;;
-								bitmap:!(ip)?*)
-									COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts range timeout)' -- $cur ) )
-								;;
-								list:*)
-									COMPREPLY=( $( compgen -W '$(size timeout)' -- $cur ) )
-								;;
-							esac
-						else # create options following
-							for ((x=$action_index+3; x < ${#COMP_WORDS[@]}; x++)); do
-								case "${COMP_WORDS[x]}" in # validate option argument values
-									@(hashsize|timeout|size|maxelem))
-										[[ ${COMP_WORDS[x+1]} != @(+([[:digit:]])|0x+([[:xdigit:]])) ]] && return 0
-										;;
-									family)
-										[[ ${COMP_WORDS[x+1]} && ${COMP_WORDS[x+1]} != inet?(6) ]] && return 0
-										;;
-									range)
-										case "$str_tmp" in
-											bitmap:port)
-												[[ ${COMP_WORDS[x+1]} && ${COMP_WORDS[x+1]} != *-* ]] && return 0
-											;;
-											*)
-												[[ ${COMP_WORDS[x+1]} && ${COMP_WORDS[x+1]} != @(*-*|*/+([[:digit:]])) ]] && return 0
-											;;
-										esac
-										;;
-								esac
-							done
-							case "${COMP_WORDS[action_index+2]}" in
-								hash:*)
-									case "$prev" in
-										family)
-											COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts inet inet6)' -- $cur ) )
-											return 0
-										;;
-										*)
-											if [[ $prev != @(-q|-quiet|-\!|-exist|family|hashsize|timeout|maxelem) ]]; then
-												COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts family hashsize timeout maxelem)' -- $cur ) )
-											fi
-									esac
-								;;
-								bitmap:ip)
-									if [[ $prev != @(-q|-quiet|-\!|-exist|range|netmask|timeout) ]]; then
-										COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts range netmask timeout)' -- $cur ) )
-									fi
-								;;
-								bitmap:!(ip)?*)
-									if [[ $prev != @(-q|-quiet|-\!|-exist|range|timeout) ]]; then
-										COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts range timeout)' -- $cur ) )
-									fi
-								;;
-								list:*)
-									if [[ $prev != @(-q|-quiet|-\!|-exist|size|timeout) ]]; then
-										COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts size timeout)' -- $cur ) )
-									fi
-								;;
-							esac
-						fi
-					;;
-					del|test)
-						str_tmp=$(_ipset_get_set_type "${COMP_WORDS[action_index+1]}")
-						_ipset_get_members --names-only "${COMP_WORDS[action_index+1]}"
-						if [[ ${COMP_WORDS[action_index+2]} = $prev ]]; then # add options
-							case "$str_tmp" in
-								list:*) COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts before after)' -- $cur ) ) ;;
-							esac
-						else # add options following
-							case "$str_tmp" in
-								list:*) arr_tmp=()
-									if [[ $prev = @(before|after) ]]; then
-										case "$prev" in
-											before)
-												for x in ${!arr_members[@]}; do
-													if [[ ${arr_members[x]} = ${COMP_WORDS[action_index+2]} ]]; then
-														if [[ ${arr_members[x+1]} ]]; then
-															arr_tmp[${#arr_tmp[@]}]=${arr_members[x+1]}
-															break
-														fi
-													fi
-												done
-												;;
-											after)
-												for x in ${!arr_members[@]}; do
-													if [[ ${arr_members[x]} = ${COMP_WORDS[action_index+2]} ]]; then
-														if ((x>0)) && [[ ${arr_members[x-1]} ]]; then
-															arr_tmp[${#arr_tmp[@]}]=${arr_members[x-1]}
-															break
-														fi
-													fi
-												done
-												;;
-										esac
-										COMPREPLY=( $( compgen -W '${arr_tmp[@]}' -- $cur ) )
-										return 0
-									fi
-								;;
-							esac
-						fi
-					;;
-				esac
-			else # we don't have the action yet, check options to display appropiate actions
-				if ((save_format || names_only || headers_only)); then
-					COMPREPLY=( $( compgen -W 'list' -- $cur ) )
-					return 0
-				elif ((res_sort)); then
-					COMPREPLY=( $( compgen -W 'list save' -- $cur ) )
-					return 0
-				elif ((ignore_errors && use_file)); then
-					COMPREPLY=( $( compgen -W 'restore' -- $cur ) )
-					return 0
-				elif ((ignore_errors)); then
-					COMPREPLY=( $( compgen -W 'create n add del restore' -- $cur ) )
-					return 0
-				elif ((use_file)); then
-					COMPREPLY=( $( compgen -W 'list save restore' -- $cur ) )
-					return 0
-				fi
-			fi
-			;;
-		esac
-	;;
-esac
-if [[ $_DEBUG_IPSET_COMPL ]]; then
-	printf "COMPREPLY before dedupe:\n"
-	printf "<%s>\n" "${COMPREPLY[@]}"
+	fi
 fi
-if ((${#COMPREPLY[@]})); then # post process the reply
-	for ((i=1; i < ${#COMP_WORDS[@]}; i++)); do # remove dupe options
-		[[ ${COMP_WORDS[i]} ]] || continue
-		if [[ ${COMP_WORDS[i]} = -?* ]]; then
-			[[ ${COMP_WORDS[i]} = $str_filename ]] && continue
-			[[ ${COMP_WORDS[i]} = $str_setname ]] && continue
-			for x in ${!arr_unknown_opts[@]}; do # we don't know bout those, so we leave 'em out
-				[[ ${COMP_WORDS[i]} = ${arr_unknown_opts[x]} ]] && continue 2
-			done
-			# if the user supplied the short form of an option previously, and now requests the long form,
-			# remove the corresponding long option, vice versa for short options
-			for y in ${!arr_opts[@]}; do # cycle through main options
-				set -- ${arr_opts[y]} # $1 = short , $2 = long option
-				str_tmp=""
-				[[ $1 = $cur ]] && continue
-				if [[ ${COMP_WORDS[i]} = $1 ]]; then # we got short version on the cmdline
-					str_tmp=$2
-				elif [[ ${COMP_WORDS[i]} = $2 ]]; then # we got long version on the cmdline
-					str_tmp=$1
-				fi
-				[[ $str_tmp ]] || continue
-				for x in ${!COMPREPLY[@]}; do # compare with compreply
-					[[ ${COMPREPLY[x]} != -?* ]] && continue
-					if [[ ${COMPREPLY[x]} = $str_tmp ]]; then
-						if [[ $_DEBUG_IPSET_COMPL ]]; then
-							printf "removing option alias - unsetting COMPREPLY[$x]: %s\n" "${COMPREPLY[x]}"
-						fi
-						unset COMPREPLY[x]
-						break 2
-					fi
-				done
-			done
-			for x in ${!COMPREPLY[@]}; do # de-dupe options
-				[[ ${COMPREPLY[x]} != -?* ]] && continue
-				if [[ ${COMP_WORDS[i]} = ${COMPREPLY[x]} && ${COMPREPLY[x]} != $cur ]]; then
-					if [[ $_DEBUG_IPSET_COMPL ]]; then
-						printf "removing dupe option - unsetting COMPREPLY[$x]: %s\n" "${COMPREPLY[x]}"
-					fi
-					unset COMPREPLY[$x]
-					break
-				fi
-			done
-#		else # dedupe option names (timeout,hashsize, etc), or set names
-#			if [[ $str_action = @(n|create|add|w|swap) ]]; then
-#				for x in ${!COMPREPLY[@]}; do
-#					if [[ $str_setname = @(timeout|range|hashsize|size|maxelem|family|inet|inet6|netmask|nomatch|before|after) ]]
-#					then [[ ${COMP_LINE/$str_setname/} = *$str_setname* ]] || continue
-#					fi
-#					# continue if reply matches action, could be a set name too
-#					[[ ${COMPREPLY[x]} = $str_action ]] && continue
-#					if [[ ${COMP_WORDS[i]} = ${COMPREPLY[x]} ]]; then
-#						if [[ $_DEBUG_IPSET_COMPL ]]; then
-#							printf "removing dupe option - unsetting COMPREPLY[$x]: %s\n" "${COMPREPLY[x]}"
-#						fi
-#						unset COMPREPLY[$x]
-#						break
-#					fi
-#				done
-#			fi
-		fi
-	done
-else
+if ! ((${#COMPREPLY[@]})); then # last exit brooklyn
 	[[ $cur ]] && _ipset_bash_default_compl "$cur"
-fi
-if [[ $_DEBUG_IPSET_COMPL ]]; then
-	printf "COMPREPLY after dedupe:\n"
-	printf "<%s>\n" "${COMPREPLY[@]}"
 fi
 }
 complete -F _ipset_complete ipset
+
