@@ -57,11 +57,8 @@ which of course are currently unpredictable.
 
 Bash 3.x and upwards are supported.
 
-
-Known problems
-=============
-If the shell variable COMP_WORDBREAKS contains a colon, set types will not be completed.
-The colon is removed from COMP_WORDBREAKS during execution, thus altering it globally.
+The bash_completion (v2.0+) package is highly recommended, though not mandatory.
+Some things might not be that reliable without it.
 
 
 Availability
