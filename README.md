@@ -24,6 +24,7 @@ Providing some kind of interactive help.
 - Show and complete set names.
 - Show and complete the set types when using the create and help command.
 - Show and complete set elements (members) when using the del command.
+- Show and complete services, protocols, icmp[6] types and interface names when adding elements.
 - Show and complete hostnames, when adding, deleting or testing elements (using @ as prefix).
 - Complete on filenames if the current option requires it.
 - Complete variable names, command subtitution and globbing patterns.
@@ -58,8 +59,11 @@ which of course are currently unpredictable.
 Bash 3.x and upwards are supported.
 
 The bash_completion (v2.0+) package is highly recommended, though not mandatory.
+http://bash-completion.alioth.debian.org/
 Some things might not be that reliable without it.
-
+Also the colon (if there) is removed from COMP_WORDBREAKS.
+This alteration is globally, which might affect other completions,
+if they do not take care of it themselves.
 
 Availability
 ============
