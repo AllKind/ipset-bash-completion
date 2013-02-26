@@ -59,7 +59,9 @@ which of course are currently unpredictable.
 Bash 3.x and upwards are supported.
 
 The bash_completion (v2.0+) package is highly recommended, though not mandatory.
+
 http://bash-completion.alioth.debian.org/
+
 Some things might not be that reliable without it.
 Also the colon (if there) is removed from COMP_WORDBREAKS.
 This alteration is globally, which might affect other completions,
@@ -70,4 +72,4 @@ Availability
 
 https://github.com/AllKind/ipset-bash-completion
 
-https://http://sourceforge.net/projects/ipset-bashcompl/
+http://sourceforge.net/projects/ipset-bashcompl/
