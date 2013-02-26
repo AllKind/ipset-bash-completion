@@ -287,6 +287,65 @@ local arr_opts=(
 "-t -terse"
 "-f -file"
 )
+local arr_icmp_types=(
+echo-reply
+pong
+network-unreachable
+host-unreachable
+protocol-unreachable
+port-unreachable
+fragmentation-needed
+source-route-failed
+network-unknown
+host-unknown
+network-prohibited
+host-prohibited
+TOS-network-unreachable
+TOS-host-unreachable
+communication-prohibited
+host-precedence-violation
+precedence-cutoff
+source-quench
+network-redirect
+host-redirect
+TOS-network-redirect
+TOS-host-redirect
+echo-request
+ping
+router-advertisement
+router-solicitation
+ttl-zero-during-transit
+ttl-zero-during-reassembly
+ip-header-bad
+required-option-missing
+timestamp-request
+timestamp-reply
+address-mask-request
+address-mask-reply
+)
+local arr_icmp6_types=(
+no-route
+communication-prohibited
+address-unreachable
+port-unreachable
+packet-too-big
+ttl-zero-during-transit
+ttl-zero-during-reassembly
+bad-header
+unknown-header-type
+unknown-option
+echo-request
+ping
+echo-reply
+pong
+router-solicitation
+router-advertisement
+neighbour-solicitation
+neigbour-solicitation
+neighbour-advertisement
+neigbour-advertisement
+redirect
+)
 
 COMPREPLY=()
 
@@ -567,11 +626,55 @@ if ((got_action)); then # we got the main action
 						COMPREPLY=( $( compgen -W '${arr_tmp[@]}' -- "$cur" ) )
 						_ipset_colon_ltrim "$cur"
 					;;
+					hash:@(ip,port|ip,port,ip|ip,port,net|net,port)) # complete on port spec (port|proto|icmp[6]-type)
+						if [[ $str_tmp = hash:ip,port,@(ip|net) ]]; then
+							compopt -o nospace
+							local str_suffix=','
+						else
+							local str_suffix=''
+						fi
+						local str_glob='[^\[]*-' # otherwise messes up my vim syntax highlightning
+						local str_regex='.*,(icmp|icmp6|tcp|sctp|udp|udplite):.*' # for compat put regex in var
+						if [[ $cur = *,@(@(tcp|sctp|udp|udplite):*-|\[*-*\]-|$str_glob)* ]]; then # range spec
+							str_tmp="$cur"
+							local str_glob='*[^\[]*-*'
+							if [[ $cur = *\[*-*\]-* ]]; then cur="${cur#*\]-}"
+								str_tmp=${str_tmp%"$cur"}
+							elif [[ $cur = $str_glob ]]; then cur="${cur#*-}"
+								str_tmp=${str_tmp%"$cur"}
+							fi
+							COMPREPLY=( $( compgen -P "$str_tmp" -S "$str_suffix" -W '$(_ipset_get_services)' -- "$cur" ) )
+							_ipset_colon_ltrim "$cur"
+						elif [[ $cur =~ $str_regex ]]; then # icmp[6] and services
+							str_tmp="${cur}" cur="${cur#*,}"
+							str_tmp="${str_tmp%"$cur"}"
+							cur="${cur#${BASH_REMATCH[1]}:}"
+							str_tmp="${str_tmp}${BASH_REMATCH[1]}:"
+							str_var=${BASH_REMATCH[1]}
+							if [[ $str_var = icmp ]]; then
+								COMPREPLY=( $( compgen -P "$str_tmp" -S "$str_suffix" -W '${arr_icmp_types[@]}' -- "$cur" ) )
+							elif [[ $str_var = icmp6 ]]; then
+								COMPREPLY=( $( compgen -P "$str_tmp" -S "$str_suffix" -W '${arr_icmp6_types[@]}' -- "$cur" ) )
+							elif [[ $str_var = @(tcp|udp|sctp|udplite) ]]; then
+								COMPREPLY=( $( compgen -P "$str_tmp" -W '$(_ipset_get_services)' -- "$cur" ) )
+								compopt -o nospace
+							fi
+							_ipset_colon_ltrim "$str_tmp"
+						elif [[ $cur = *,* ]]; then # first attempt :/ long list
+							str_tmp="${cur%,*}," cur="${cur#*,}" str_var="tcp: udp: sctp: udplite: icmp: icmp6:" # add the prefix list
+							COMPREPLY=( $( compgen -P "$str_tmp" -W '$str_var $(_ipset_get_services)' -- "$cur" ) ) # add the services
+							for str_tmp in $( compgen -P "$str_tmp" -S ":0$str_suffix" -W '$(_ipset_get_protocols)' -- "$cur" ); do
+								COMPREPLY[${#COMPREPLY[@]}]="$str_tmp" # add the protocols
+								_ipset_colon_ltrim "$cur"
+							done
+							compopt -o nospace
+						fi
+					;;
 					hash:net,iface)
 						if [[ $cur = *,* ]]; then str_tmp="${cur}" cur="${cur#*,}" str_var=""
 							str_tmp="${str_tmp%"$cur"}"
 							if [[ $cur = physdev:* ]]; then
-								cur="${cur#physdev:}"
+								cur="${cur#physev:}"
 								str_tmp="${str_tmp}physdev:"
 							else
 								str_var="physdev:"
