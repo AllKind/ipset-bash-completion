@@ -69,6 +69,7 @@ elif shopt -q extglob && [[ $1 == *[?*+\!@]\(*\)* ]]; then
 	COMPREPLY=( $( compgen -G "$1" ) )
 fi
 }
+
 _ipset_is_set() {
 local -i idx
 ((${#arr_sets[@]})) || arr_sets=( $(ipset list -n) )
@@ -150,9 +151,7 @@ done
 
 _ipset_colon_ltrim() {
 ((got_bashcompl)) || return 0
-if [[ $COMP_WORDBREAKS = *:* ]]; then
-	__ltrim_colon_completions "$1"
-fi
+__ltrim_colon_completions "$1"
 }
 
 _ipset_get_options() {
@@ -166,10 +165,10 @@ if ((got_action)); then
 			COMPREPLY=( $( compgen -W '-f -file -q -quiet' -- "$cur" ) )
 		;;
 		create|n|add|del)
-			COMPREPLY=( $( compgen -W '-\! -exist -q -quiet' -- "$cur" ) )
+			COMPREPLY=( $( compgen -W '-! -exist -q -quiet' -- "$cur" ) )
 		;;
 		restore)
-			COMPREPLY=( $( compgen -W '-\! -exist -f -file -q -quiet' -- "$cur" ) )
+			COMPREPLY=( $( compgen -W '-! -exist -f -file -q -quiet' -- "$cur" ) )
 		;;
 		list)
 			if ((names_only || headers_only)); then
@@ -199,12 +198,21 @@ else
 	elif ((ignore_errors)); then
 		COMPREPLY=( $( compgen -W '-f -file -q -quiet' -- "$cur" ) )
 	elif ((use_file)); then
-		COMPREPLY=( $( compgen -W '-\! -exist -n -name -o -output -q -quiet -r -resolve -s -sorted -t -terse' -- "$cur" ) )
+		COMPREPLY=( $( compgen -W '-! -exist -n -name -o -output -q -quiet -r -resolve -s -sorted -t -terse' -- "$cur" ) )
 	else
 		COMPREPLY=( $( compgen -W '- ${arr_opts[@]}' -- "$cur" ) )
 	fi
 fi
 if ((${#COMPREPLY[@]})); then # post process the reply
+	if [[ ${_IPSET_OPT_FORMAT:=long} = long ]]; then # choose on env var 
+		for ridx in ${!COMPREPLY[@]}; do # remove short version of options
+			[[ ${COMPREPLY[ridx]} = -? ]] && unset COMPREPLY[ridx]
+		done
+	elif [[ ${_IPSET_OPT_FORMAT} = short ]]; then
+		for ridx in ${!COMPREPLY[@]}; do # remove short version of options
+			[[ ${COMPREPLY[ridx]} = -??* ]] && unset COMPREPLY[ridx]
+		done
+	fi
 	for idx in ${!arr_used_opts[@]}; do
 		# if the user supplied the short form of an option previously, and now requests the long form,
 		# remove the corresponding long option, vice versa for short options
@@ -272,13 +280,14 @@ _ipset_complete() {
 shopt -s extglob
 local cur prev cword words ips_version str_action str_setname str_filename
 local str_tmp="" str_var="" str_timeout="timeout" str_order="before after"
+local str_glob str_regex str_suffix
 local -i i=x=y=0
 local -i got_bashcompl=got_action=action_index=order_index=set_has_timeout=0
 local -i ignore_errors=use_file=names_only=headers_only=save_format=res_sort=0
 local arr_sets=() arr_types=() arr_members=() arr_unknown_opts=()
 local arr_dupe_cmd_opts=() arr_used_opts=() arr_tmp=()
 local arr_opts=(
-"-\! -exist"
+"-! -exist"
 "-o -output"
 "-q -quiet"
 "-r -resolve"
@@ -548,23 +557,23 @@ if ((got_action)); then # we got the main action
 				COMPREPLY=( $( compgen -W '$(ipset list -n )' -- "$cur" ) )
 				_ipset_colon_ltrim "$cur"
 			;;
-			list)
-				# we don't know if its an option request, could also be a set
-			   	# named `-*', if the latter is true, show sets and options
-				if [[ $cur = -* ]]; then
-					_ipset_get_options
-					if _ipset_is_set "${cur}*"; then
-						for i in ${!arr_sets[@]}; do
-							[[ ${arr_sets[i]} = $cur* ]] && COMPREPLY[${#COMPREPLY[@]}]="${arr_sets[i]}"
-						done
-						_ipset_colon_ltrim "$cur"
-					fi
-				else
-					COMPREPLY=( $( compgen -W '$(ipset list -n )' -- "$cur" ) )
-					_ipset_colon_ltrim "$cur"
-				fi
-			;;
-			flush|save|destroy|x)
+#			list)
+#				# we don't know if its an option request, could also be a set
+#			   	# named `-*', if the latter is true, show sets and options
+#				if [[ $cur = -* ]]; then
+#					_ipset_get_options
+#					if _ipset_is_set "${cur}*"; then
+#						for i in ${!arr_sets[@]}; do
+#							[[ ${arr_sets[i]} = $cur* ]] && COMPREPLY[${#COMPREPLY[@]}]="${arr_sets[i]}"
+#						done
+#						_ipset_colon_ltrim "$cur"
+#					fi
+#				else
+#					COMPREPLY=( $( compgen -W '$(ipset list -n )' -- "$cur" ) )
+#					_ipset_colon_ltrim "$cur"
+#				fi
+#			;;
+			list|flush|save|destroy|x)
 				# we don't know if its an option request, could also be a set
 			   	# named `-*', if the latter is true, show sets and options
 				if [[ $cur = -* ]]; then
@@ -629,15 +638,14 @@ if ((got_action)); then # we got the main action
 					hash:@(ip,port|ip,port,ip|ip,port,net|net,port)) # complete on port spec (port|proto|icmp[6]-type)
 						if [[ $str_tmp = hash:ip,port,@(ip|net) ]]; then
 							compopt -o nospace
-							local str_suffix=','
+							str_suffix=','
 						else
-							local str_suffix=''
+							str_suffix=''
 						fi
-						local str_glob='[^\[]*-' # otherwise messes up my vim syntax highlightning
-						local str_regex='.*,(icmp|icmp6|tcp|sctp|udp|udplite):.*' # for compat put regex in var
+						str_glob='[^\[]*-' # otherwise messes up my vim syntax highlightning
+						str_regex='.*,(icmp|icmp6|tcp|sctp|udp|udplite):.*' # for compat put regex in var
 						if [[ $cur = *,@(@(tcp|sctp|udp|udplite):*-|\[*-*\]-|$str_glob)* ]]; then # range spec
-							str_tmp="$cur"
-							local str_glob='*[^\[]*-*'
+							str_tmp="$cur" str_glob='*[^\[]*-*'
 							if [[ $cur = *\[*-*\]-* ]]; then cur="${cur#*\]-}"
 								str_tmp=${str_tmp%"$cur"}
 							elif [[ $cur = $str_glob ]]; then cur="${cur#*-}"
@@ -740,6 +748,7 @@ if ((got_action)); then # we got the main action
 	elif ((cword >= action_index+4)); then # add options following
 		if [[ $cur = -* && $prev != @(timeout|hashsize|size|family|maxelem|range|netmask|before|after) ]]
 		then _ipset_get_options
+			return 0
 		fi
 		case "$str_action" in
 			add)
@@ -819,7 +828,7 @@ if ((got_action)); then # we got the main action
 				if [[ ${words[action_index+2]} = bitmap:port && $prev = range ]]; then
 					# complete port ranges
 					str_tmp="$cur" str_var=""
-					local str_glob='[^\[]*-*'
+					str_glob='[^\[]*-*'
 					if [[ $cur = \[*-*\]-* ]]; then cur="${cur#*\]-}"
 						str_tmp=${str_tmp%"$cur"}
 					elif [[ $cur = $str_glob ]]; then cur="${cur#*-}"
