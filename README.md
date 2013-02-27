@@ -60,8 +60,8 @@ To complete named port ranges, enter the hypen after the first completed service
 hit [TAB] again to start completion on the second named port (the brackets [] for service names
 containing a - (hyphen) are already surrounding the name in the completion list).
 
-Depending on the environment variable _IPSET_OPT_FORMAT, either the long, short or both forms of options are shown for completion.
-By default (empty _IPSET_OPT_FORMAT) the long versions of options are displayed (_IPSET_OPT_FORMAT=long also does the same).
+Depending on the environment variable _IPSET_COMPL_OPT_FORMAT, either the long, short or both forms of options are shown for completion.
+By default (empty _IPSET_COMPL_OPT_FORMAT) the long versions of options are displayed (_IPSET_COMPL_OPT_FORMAT=long also does the same).
 Setting it to 'short' will cause completion to show only the short form.
 Setting it to any other value, will result in both version being displayed and completed.
 
@@ -71,6 +71,19 @@ and completion is attempted on the port specification, the list of possible comp
 Especially if no characters are given to match on.
 This behaviour is because of the many different values such a port specification can possibly have.
 
+When deleting elements from one of the following set types:
+hash:ip,port hash:ip,port,ip hash:ip,port,net hash:net,port
+the environment variable _IPSET_COMPL_DEL_MODE is queried to decide how to complete.
+If it is set to 'members' it will list the members of the set.
+If it is set to 'spec' it will follow the format of a port specification ([proto:]port).
+If it is set to any other value both methods are used to generate the list of possible completions (this is the default).
+
+When testing elements from one of the following set types:
+hash:ip,port hash:ip,port,ip hash:ip,port,net hash:net,port
+the environment variable _IPSET_COMPL_TEST_MODE is queried to decide how to complete.
+If it is set to 'members' it will list the members of the set.
+If it is set to 'spec' it will follow the format of a port specification ([proto:]port).
+If it is set to any other value both methods are used to generate the list of possible completions (this is the default).
 
 Compatibility
 =============
