@@ -1045,5 +1045,6 @@ if ! ((${#COMPREPLY[@]})); then # last exit brooklyn
 	[[ $cur ]] && _ipset_bash_default_compl "$cur"
 fi
 }
+
 complete -F _ipset_complete ipset
 
