@@ -582,30 +582,15 @@ if ((got_action)); then # we got the main action
 				COMPREPLY=( $( compgen -W '$(ipset list -n )' -- "$cur" ) )
 				_ipset_colon_ltrim "$cur"
 			;;
-#			list)
-#				# we don't know if its an option request, could also be a set
-#			   	# named `-*', if the latter is true, show sets and options
-#				if [[ $cur = -* ]]; then
-#					_ipset_get_options
-#					if _ipset_is_set "${cur}*"; then
-#						for i in ${!arr_sets[@]}; do
-#							[[ ${arr_sets[i]} = $cur* ]] && COMPREPLY[${#COMPREPLY[@]}]="${arr_sets[i]}"
-#						done
-#						_ipset_colon_ltrim "$cur"
-#					fi
-#				else
-#					COMPREPLY=( $( compgen -W '$(ipset list -n )' -- "$cur" ) )
-#					_ipset_colon_ltrim "$cur"
-#				fi
-#			;;
 			list|flush|save|destroy|x)
 				# we don't know if its an option request, could also be a set
 			   	# named `-*', if the latter is true, show sets and options
 				if [[ $cur = -* ]]; then
 					_ipset_get_options
 					if _ipset_is_set "${cur}*"; then
+						x=$((${#COMPREPLY[@]} - 1))
 						for i in ${!arr_sets[@]}; do
-							[[ ${arr_sets[i]} = $cur* ]] && COMPREPLY[${#COMPREPLY[@]}]="${arr_sets[i]}"
+							[[ ${arr_sets[i]} = $cur* ]] && COMPREPLY[x++]="${arr_sets[i]}"
 						done
 						_ipset_colon_ltrim "$cur"
 					fi
@@ -707,8 +692,9 @@ if ((got_action)); then # we got the main action
 						elif [[ $cur = *,* ]]; then # first attempt :/ long list
 							str_tmp="${cur%,*}," cur="${cur#*,}" str_var="tcp: udp: sctp: udplite: icmp: icmp6:" # add the prefix list
 							COMPREPLY=( $( compgen -P "$str_tmp" -W '$str_var $(_ipset_get_services -p tcp)' -- "$cur" ) ) # add the services
+							x=$((${#COMPREPLY[@]} - 1))
 							for str_tmp in $( compgen -P "$str_tmp" -S ":0$str_suffix" -W '$(_ipset_get_protocols)' -- "$cur" ); do
-								COMPREPLY[${#COMPREPLY[@]}]="$str_tmp" # add the protocols
+								COMPREPLY[x++]="$str_tmp" # add the protocols
 								_ipset_colon_ltrim "$cur"
 							done
 							compopt -o nospace
