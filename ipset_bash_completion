@@ -740,7 +740,7 @@ if ((got_action)); then # we got the main action
 					if [[ $cur = *-* ]]; then
 						if [[ $str_tmp = bitmap:port ]]; then
 							for i in ${!arr_members[@]}; do
-								((${arr_members[i]} <= ${cur%%-*})) && unset arr_members[i]
+								((${arr_members[i]} <= ${cur%%-*})) && unset arr_members[i] || break
 							done
 						fi
 						str_prefix="${cur%-*}-" cur="${cur#*-}"
