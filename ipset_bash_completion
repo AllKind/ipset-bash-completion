@@ -286,7 +286,7 @@ while read -r str_name str_num rest; do
 	if [[ $str_name = *([[:blank:]])#* ]]; then continue
 	elif [[ $str_p != all && ${str_num#*/} != $str_p ]]; then
 		continue
-	elif [[ $str_offset ]] && ((${str_num%/*} <= $str_offset)); then
+	elif [[ $str_offset && $str_num && $str_num = +([[:digit:]])/* ]] && ((${str_num%/*} <= $str_offset)); then
 		continue
 	elif [[ $str_name = *-* ]]; then str_name="[$str_name]"
 	fi
