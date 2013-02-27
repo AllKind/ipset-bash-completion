@@ -646,6 +646,22 @@ if ((got_action)); then # we got the main action
 						COMPREPLY=( $( compgen -W '${arr_tmp[@]}' -- "$cur" ) )
 						_ipset_colon_ltrim "$cur"
 					;;
+					bitmap:port)
+						# complete port [range]
+						str_tmp="$cur" str_var=""
+						str_glob='[^\[]*-*'
+						if [[ $cur = \[*-*\]-* ]]; then str_var="${cur#\[}"
+							str_var="${str_var%%\]*}"
+							cur="${cur#*\]-}"
+							str_tmp=${str_tmp%"$cur"}
+						elif [[ $cur = $str_glob ]]; then str_var="${cur%%-*}"
+							cur="${cur#*-}"
+							str_tmp=${str_tmp%"$cur"}
+						else str_tmp=""
+							compopt -o nospace
+						fi
+						COMPREPLY=( $( compgen -P "$str_tmp" -S "$str_suffix" -W '$(_ipset_get_services -o $str_var)' -- "$cur" ) )
+					;;
 					hash:@(ip,port|ip,port,ip|ip,port,net|net,port))
 						# complete on port spec (port|proto|icmp[6]-type)
 						if [[ $str_tmp = hash:ip,port,@(ip|net) ]]; then
