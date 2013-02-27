@@ -59,9 +59,13 @@ elif [[ $1 == \$\{* ]]; then # variables with a leading `${'
 elif [[ $1 == \$* ]]; then # variables with a leading `$'
 	t=${1#?}
 	COMPREPLY=( $(compgen -v -P '$' $t ) )
-elif [[ "$1" == *@* ]]; then # hostname TODO: fix completion if more than one match exists
+elif [[ "$1" == *@* ]]; then # hostname
 	t=${1#*@}
 	COMPREPLY=( $( compgen -A hostname $t ) )
+	# prefix as long we have multiple completions
+	if ((${#COMPREPLY[@]} > 1)); then
+		COMPREPLY=( $( compgen -P '@' -A hostname $t ) )
+	fi
 elif [[ $1 == *[*?[]* ]]; then # sh-style glob pattern
 	COMPREPLY=( $( compgen -G "$1" ) )
 	# ksh-style extended glob pattern - must be complete
