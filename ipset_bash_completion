@@ -260,7 +260,7 @@ done < /etc/protocols
 }
 
 _ipset_get_services() {
-local str_offset str_name str_num str_p=all rest
+local str_offset="" str_name str_num str_p=all rest
 while (($#)); do
 	if [[ $1 = -p ]]; then
 		str_p="${2:-all}"
@@ -269,15 +269,19 @@ while (($#)); do
 		# second part of range will have offset = first_part_of_range
 		str_offset="${2}"
 		shift
-		if [[ $str_offset != +([[:digit:]]) ]]; then # find service num to set offset
-			while read str_name str_num rest; do
-				[[ $str_name = *([[:blank:]])#* ]] && continue
-				[[ $str_name = $str_offset ]] && str_offset=${str_num%/*} && break
-			done < /etc/services
-		fi
 	fi
 	shift
 done
+if [[ $str_offset && $str_offset != +([[:digit:]]) ]]; then # find service num to set offset
+	while read str_name str_num rest; do
+		if [[ $str_name = *([[:blank:]])#* ]]; then continue
+		elif [[ $str_p != all && ${str_num#*/} != $str_p ]]; then
+			continue
+		fi
+		[[ $str_name = $str_offset ]] && str_offset=${str_num%/*} && break
+	done < /etc/services
+	[[ $str_offset = +([[:digit:]]) ]] || return 0
+fi
 while read -r str_name str_num rest; do
 	if [[ $str_name = *([[:blank:]])#* ]]; then continue
 	elif [[ $str_p != all && ${str_num#*/} != $str_p ]]; then
