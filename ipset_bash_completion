@@ -736,7 +736,7 @@ if ((got_action)); then # we got the main action
 				str_prefix=""
 				str_tmp=$(_ipset_get_set_type "$str_setname")
 				_ipset_get_members --names-only "$str_setname"
-				if [[ $str_action = del && $str_tmp = bitmap:ip ]]; then
+				if [[ $str_action = del && $str_tmp = bitmap:@(ip|port) ]]; then
 					if [[ $cur = *-* ]]; then
 						str_prefix="${cur%-*}-" cur="${cur#*-}"
 					else
