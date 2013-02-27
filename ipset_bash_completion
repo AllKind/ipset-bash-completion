@@ -738,6 +738,11 @@ if ((got_action)); then # we got the main action
 				_ipset_get_members --names-only "$str_setname"
 				if [[ $str_action = del && $str_tmp = bitmap:@(ip|port) ]]; then
 					if [[ $cur = *-* ]]; then
+						if [[ $str_tmp = bitmap:port ]]; then
+							for i in ${!arr_members[@]}; do
+								((${arr_members[i]} <= ${cur%%-*})) && unset arr_members[i]
+							done
+						fi
 						str_prefix="${cur%-*}-" cur="${cur#*-}"
 					else
 						compopt -o nospace
