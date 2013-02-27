@@ -305,7 +305,7 @@ _ipset_complete() {
 shopt -s extglob
 local cur prev cword words ips_version str_action str_setname str_filename
 local str_tmp="" str_var="" str_timeout="timeout" str_order="before after"
-local str_glob str_glob2 str_regex str_suffix str_proto
+local str_glob str_glob2 str_regex str_prefix str_suffix str_proto
 local -i i=x=y=0
 local -i got_bashcompl=got_action=action_index=order_index=set_has_timeout=0
 local -i ignore_errors=use_file=names_only=headers_only=save_format=res_sort=0
@@ -733,8 +733,17 @@ if ((got_action)); then # we got the main action
 				esac
 			;;
 			del|test) # complete members
+				str_prefix=""
+				str_tmp=$(_ipset_get_set_type "$str_setname")
 				_ipset_get_members --names-only "$str_setname"
-				COMPREPLY=( $( compgen -W '${arr_members[@]}' -- "$cur" ) )
+				if [[ $str_action = del && $str_tmp = bitmap:ip ]]; then
+					if [[ $cur = *-* ]]; then
+						str_prefix="${cur%-*}-" cur="${cur#*-}"
+					else
+						compopt -o nospace
+					fi
+				fi
+				COMPREPLY=( $( compgen -P "$str_prefix" -W '${arr_members[@]}' -- "$cur" ) )
 			;;
 		esac
 	elif ((cword == action_index+3)) && [[ $cur != -* ]]; then

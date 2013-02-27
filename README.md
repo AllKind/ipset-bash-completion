@@ -58,7 +58,7 @@ Type [TAB] to complete on anything available at the current context.
 
 To complete named port ranges, enter the hypen after the first completed service (port) name,
 hit [TAB] again to start completion on the second named port (the brackets [] for service names
-containing a - are already surrounding the name in the completion list).
+containing a - (hyphen) are already surrounding the name in the completion list).
 
 Depending on the environment variable _IPSET_OPT_FORMAT, either the long, short or both forms of options are shown for completion.
 By default (empty _IPSET_OPT_FORMAT) the long versions of options are displayed (_IPSET_OPT_FORMAT=long also does the same).
