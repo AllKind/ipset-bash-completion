@@ -72,14 +72,14 @@ Especially if no characters are given to match on.
 This behaviour is because of the many different values such a port specification can possibly have.
 
 When deleting elements from one of the following set types:
-hash:ip,port hash:ip,port,ip hash:ip,port,net hash:net,port
+hash:ip,port hash:ip,port,ip hash:ip,port,net hash:net,port hash:net,iface
 the environment variable _IPSET_COMPL_DEL_MODE is queried to decide how to complete.
 If it is set to 'members' it will list the members of the set.
 If it is set to 'spec' it will follow the format of a port specification ([proto:]port).
 If it is set to any other value both methods are used to generate the list of possible completions (this is the default).
 
 When testing elements from one of the following set types:
-hash:ip,port hash:ip,port,ip hash:ip,port,net hash:net,port
+hash:ip,port hash:ip,port,ip hash:ip,port,net hash:net,port hash:net,iface
 the environment variable _IPSET_COMPL_TEST_MODE is queried to decide how to complete.
 If it is set to 'members' it will list the members of the set.
 If it is set to 'spec' it will follow the format of a port specification ([proto:]port).
