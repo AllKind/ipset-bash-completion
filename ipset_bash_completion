@@ -466,7 +466,7 @@ fi
 _ipset_complete() {
 shopt -s extglob
 local cur prev cword words ips_version str_action str_setname str_type str_filename
-local str_tmp="" str_var="" str_timeout="timeout" str_order="before after"
+local str_tmp="" str_var="" str_timeout="timeout" str_order="before after" str_counters=""
 local str_glob str_regex str_prefix str_suffix
 local -i i=x=y=0
 local -i got_bashcompl=got_action=action_index=order_index=set_has_timeout=0
@@ -546,11 +546,18 @@ redirect
 COMPREPLY=()
 
 # ipset version check 6.x upwards (to v?) is supported
-ips_version="$(ipset --version)"
+ips_version="$(ipset version)"
 ips_version="${ips_version#ipset v}"
-ips_version="${ips_version%%.*}"
-[[ $ips_version = +([[:digit:]]) ]] || return 1
-((ips_version < 6)) && return 1
+ips_version="${ips_version%,+([[:blank:]])protocol*}"
+read -a ips_version <<< ${ips_version//./ }
+[[ ${ips_version[0]} = +([[:digit:]]) ]] || return 1
+((ips_version[0] < 6)) && return 1
+
+# ipset -gt v6.17 has counters flag
+if ((ips_version[0] == 6 && ips_version[1] >= 17)) || ((ips_version[0] > 6))
+then
+	str_counters="counters"
+fi
 
 # expecting _get_comp_words_by_ref() to exist from bash_completion
 if declare -f _get_comp_words_by_ref &>/dev/null; then got_bashcompl=1
@@ -642,7 +649,7 @@ case "${words[i]}" in
             order_index=$i str_order=""
         fi
     ;;
-    timeout|range|maxelem|family|hashsize|size|netmask|nomatch)
+    timeout|range|maxelem|family|hashsize|size|netmask|nomatch|counters)
         if ((got_action && i > action_index+2)); then
             str_tmp="$COMP_LINE"
             [[ $str_setname = ${words[i]} ]] && str_tmp="${str_tmp/${words[i]}/}"
@@ -941,29 +948,29 @@ elif ((cword == action_index+3)) && [[ $cur != -* ]]; then
             fi
             case "$str_type" in
                 hash:*net*)
-                    COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts $str_timeout nomatch)' -- "$cur" ) )
+                    COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts $str_timeout $str_counters nomatch)' -- "$cur" ) )
                 ;;
                 hash:*!(net)*|bitmap:*)
-                    COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts $str_timeout)' -- "$cur" ) )
+                    COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts $str_timeout $str_counters)' -- "$cur" ) )
                 ;;
                 list:*)
-                    COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts $str_order $str_timeout)' -- "$cur" ) )
+                    COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts $str_order $str_timeout $str_counters)' -- "$cur" ) )
                 ;;
             esac
         ;;
         create|n)
             case "$prev" in
                 hash:*)
-                    COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts family hashsize timeout maxelem)' -- "$cur" ) )
+                    COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts family hashsize timeout maxelem $str_counters)' -- "$cur" ) )
                 ;;
                 bitmap:ip)
-                    COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts range netmask timeout)' -- "$cur" ) )
+                    COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts range netmask timeout $str_counters)' -- "$cur" ) )
                 ;;
                 bitmap:!(ip)?*)
-                    COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts range timeout)' -- "$cur" ) )
+                    COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts range timeout $str_counters)' -- "$cur" ) )
                 ;;
                 list:*)
-                    COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts size timeout)' -- "$cur" ) )
+                    COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts size timeout $str_counters)' -- "$cur" ) )
                 ;;
             esac
         ;;
@@ -977,7 +984,7 @@ elif ((cword == action_index+3)) && [[ $cur != -* ]]; then
 elif ((cword == action_index+3)) && [[ $cur = -* ]]; then
     _ipset_get_options
 elif ((cword >= action_index+4)); then # add options following
-    if [[ $cur = -* && $prev != @(timeout|hashsize|size|family|maxelem|range|netmask|before|after) ]]
+    if [[ $cur = -* && $prev != @(timeout|hashsize|size|family|maxelem|range|netmask|before|after|counters) ]]
     then _ipset_get_options
         return 0
     fi
@@ -995,7 +1002,7 @@ elif ((cword >= action_index+4)); then # add options following
             case "$str_type" in
                 hash:*net*)
                     if [[ $prev != timeout ]]; then
-                        COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts $str_timeout nomatch)' -- "$cur" ) )
+                        COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts $str_timeout $str_counters nomatch)' -- "$cur" ) )
                     fi
                 ;;
                 list:*)
@@ -1004,7 +1011,7 @@ elif ((cword >= action_index+4)); then # add options following
                         COMPREPLY=( $( compgen -W '${arr_members[@]}' -- "$cur" ) )
                         _ipset_colon_ltrim "$cur"
                     elif [[ $prev != timeout ]]; then
-                        COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts $str_order $str_timeout)' -- "$cur" ) )
+                        COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts $str_order $str_timeout $str_counters)' -- "$cur" ) )
                     fi
                 ;;
             esac
@@ -1037,22 +1044,22 @@ elif ((cword >= action_index+4)); then # add options following
                     if [[ $prev = family ]]; then
                         COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts inet inet6)' -- "$cur" ) )
                     elif [[ $prev != @(family|hashsize|timeout|maxelem) ]]; then
-                        COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts family hashsize timeout maxelem)' -- "$cur" ) )
+                        COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts family hashsize timeout maxelem $str_counters)' -- "$cur" ) )
                     fi
                 ;;
                 bitmap:ip)
                     if [[ $prev != @(range|netmask|timeout) ]]; then
-                        COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts range netmask timeout)' -- "$cur" ) )
+                        COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts range netmask timeout $str_counters)' -- "$cur" ) )
                     fi
                 ;;
                 bitmap:!(ip)?*)
                     if [[ $prev != @(range|timeout) ]]; then
-                        COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts range timeout)' -- "$cur" ) )
+                        COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts range timeout $str_counters)' -- "$cur" ) )
                     fi
                 ;;
                 list:*)
                     if [[ $prev != @(size|timeout) ]]; then
-                        COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts size timeout)' -- "$cur" ) )
+                        COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts size timeout $str_counters)' -- "$cur" ) )
                     fi
                 ;;
             esac
