@@ -465,9 +465,11 @@ fi
 
 _ipset_complete() {
 shopt -s extglob
-local cur prev cword words ips_version str_action str_setname str_type str_filename
-local str_tmp="" str_var="" str_timeout="timeout" str_order="before after" str_counters=""
+local cur prev cword words ips_version
+local str_action str_setname str_type str_filename
 local str_glob str_regex str_prefix str_suffix
+local str_tmp="" str_var=""
+local str_timeout="timeout" str_order="before after" str_counters=""
 local -i i=x=y=0
 local -i got_bashcompl=got_action=action_index=order_index=set_has_timeout=0
 local -i ignore_errors=use_file=names_only=headers_only=save_format=res_sort=0
@@ -556,7 +558,7 @@ read -a ips_version <<< ${ips_version//./ }
 # ipset -gt v6.17 has counters flag
 if ((ips_version[0] == 6 && ips_version[1] >= 17)) || ((ips_version[0] > 6))
 then
-	str_counters="counters"
+    str_counters="counters"
 fi
 
 # expecting _get_comp_words_by_ref() to exist from bash_completion
@@ -584,7 +586,7 @@ if [[ $_DEBUG_IPSET_COMPL ]]; then
 fi
 
 # collect information about used options
-for ((i=1; i < ${#words[@]}; i++)); do
+for ((i=1; i < ${#words[@]}-1; i++)); do
 case "${words[i]}" in
     @(create|n|add|del|test|destroy|x|list|save|restore|flush|rename|e|swap|w|help|version))
         [[ ${words[i-1]} = @(-f|-file) ]] && continue # there could be a file named like a command
@@ -600,24 +602,23 @@ case "${words[i]}" in
         fi
     ;;
     -\!|-exist)
-        [[ ${words[i]} != $cur ]] && [[ ${words[i-1]} != @(-f|-file) ]] &&\
+        [[ ${words[i-1]} != @(-f|-file) ]] &&\
             ignore_errors=1 arr_used_opts[${#arr_used_opts[@]}]=${words[i]}
     ;;
     -f|-file)
-        [[ ${words[i]} != $cur ]] && [[ ${words[i-1]} != @(-f|-file) ]] &&\
+        [[ ${words[i-1]} != @(-f|-file) ]] &&\
             use_file=1 str_filename="${words[i+1]}" \
             arr_used_opts[${#arr_used_opts[@]}]=${words[i]}
     ;;
     -n|-name)
-        [[ ${words[i]} != $cur ]] && [[ ${words[i-1]} != @(-f|-file) ]] &&\
+        [[ ${words[i-1]} != @(-f|-file) ]] &&\
            names_only=1 arr_used_opts[${#arr_used_opts[@]}]=${words[i]}
     ;;
     -t|-terse)
-        [[ ${words[i]} != $cur ]] && [[ ${words[i-1]} != @(-f|-file) ]] &&\
+        [[ ${words[i-1]} != @(-f|-file) ]] &&\
             headers_only=1 arr_used_opts[${#arr_used_opts[@]}]=${words[i]}
     ;;
     -o|-output)
-        [[ ${words[i]} = $cur ]] && continue
         if [[ ${words[i-1]} != @(-f|-file) ]]; then
             arr_used_opts[${#arr_used_opts[@]}]=${words[i]}
             if [[ $prev = @(-o|-output) ]]; then
@@ -630,7 +631,7 @@ case "${words[i]}" in
         fi
     ;;
     -r|-resolve|-s|-sorted)
-        [[ ${words[i]} != $cur ]] && [[ ${words[i-1]} != @(-f|-file) ]] &&\
+        [[ ${words[i-1]} != @(-f|-file) ]] &&\
             res_sort=1 arr_used_opts[${#arr_used_opts[@]}]=${words[i]}
     ;;
     -q|-quiet)
