@@ -71,7 +71,19 @@ elif [[ $1 == *[*?[]* ]]; then # sh-style glob pattern
     # ksh-style extended glob pattern - must be complete
 elif shopt -q extglob && [[ $1 == *[?*+\!@]\(*\)* ]]; then
     COMPREPLY=( $( compgen -G "$1" ) )
+else # last fallback is filename completion
+    if ((got_bashcompl)); then
+        _filedir
+    else
+        compopt -o nospace
+        COMPREPLY=( $( compgen -f -- "$cur" ) )
+    fi
 fi
+}
+
+_ipset_colon_ltrim() {
+((got_bashcompl)) || return 0
+__ltrim_colon_completions "$1"
 }
 
 _ipset_is_set() {
@@ -153,61 +165,63 @@ for str_opt in "${@}"; do
 done
 }
 
-_ipset_colon_ltrim() {
-((got_bashcompl)) || return 0
-__ltrim_colon_completions "$1"
-}
-
 _ipset_get_options() {
+local str_list
 local -i idx oidx ridx
 if ((got_action)); then
     case "$str_action" in
         rename|e|swap|w|test|flush|destroy|x)
-            COMPREPLY=( $( compgen -W '-q -quiet' -- "$cur" ) )
+            str_list='-q -quiet'
         ;;
         save)
-            COMPREPLY=( $( compgen -W '-f -file -q -quiet' -- "$cur" ) )
+            str_list='-f -file -q -quiet'
         ;;
         create|n|add|del)
-            COMPREPLY=( $( compgen -W '-! -exist -q -quiet' -- "$cur" ) )
+            str_list='-! -exist -q -quiet'
         ;;
         restore)
-            COMPREPLY=( $( compgen -W '-! -exist -f -file -q -quiet' -- "$cur" ) )
+            str_list='-! -exist -f -file -q -quiet'
         ;;
         list)
+            str_list='-f -file -q -quiet'
             if ((names_only || headers_only)); then
-                COMPREPLY=( $( compgen -W '-f -file -o -output -q -quiet' -- "$cur" ) )
+                str_list+=' -o -output'
             elif ((res_sort)); then
-                COMPREPLY=( $( compgen -W '-f -file -o -output -q -quiet -r -resolve -s -sorted' -- "$cur" ) )
+                str_list+=' -o -output -r -resolve -s -sorted'
             elif ((save_format == 1)); then
-                COMPREPLY=( $( compgen -W '-f -file -q -quiet -r -resolve -s -sorted -t -terse' -- "$cur" ) )
+                str_list+=' -r -resolve -s -sorted -t -terse'
             elif ((save_format == 3)); then
-                COMPREPLY=( $( compgen -W '-f -file -q -quiet -r -resolve -s -sorted' -- "$cur" ) )
+                str_list+=' -r -resolve -s -sorted'
             else
-                COMPREPLY=( $( compgen -W '-f -file -n -name -o -output -q -quiet -r -resolve -s -sorted -t -terse' -- "$cur" ) )
+                str_list+=' -n -name -o -output -r -resolve \
+                    -s -sorted -t -terse'
             fi
         ;;
     esac
 else
+    str_list='-f -file -q -quiet'
     if ((names_only || headers_only)) && ((save_format == 1)); then
-        COMPREPLY=( $( compgen -W '-f -file -q -quiet' -- "$cur" ) )
+        :
     elif ((names_only || headers_only)); then
-        COMPREPLY=( $( compgen -W '-f -file -o -output -q -quiet' -- "$cur" ) )
+        str_list+=' -o -output'
     elif ((res_sort)); then
-        COMPREPLY=( $( compgen -W '-f -file -o -output -q -quiet -r -resolve -s -sorted' -- "$cur" ) )
+        str_list+=' -o -output -r -resolve -s -sorted'
     elif ((save_format == 1)); then
-        COMPREPLY=( $( compgen -W '-f -file -q -quiet -r -resolve -s -sorted -t -terse' -- "$cur" ) )
+        str_list+=' -r -resolve -s -sorted -t -terse'
     elif ((save_format == 3)); then
-        COMPREPLY=( $( compgen -W '-f -file -q -quiet -r -resolve -s -sorted' -- "$cur" ) )
+        str_list+=' -r -resolve -s -sorted'
     elif ((ignore_errors)); then
-        COMPREPLY=( $( compgen -W '-f -file -q -quiet' -- "$cur" ) )
+        :
     elif ((use_file)); then
-        COMPREPLY=( $( compgen -W '-! -exist -n -name -o -output -q -quiet -r -resolve -s -sorted -t -terse' -- "$cur" ) )
+        str_list='-! -exist -n -name -o -output -q -quiet -r \
+            -resolve -s -sorted -t -terse'
     else
-        COMPREPLY=( $( compgen -W '- ${arr_opts[@]}' -- "$cur" ) )
+        str_list='- ${arr_opts[@]}'
     fi
 fi
+COMPREPLY=( $( compgen -W "- $str_list" -- "$cur" ) )
 ((${#COMPREPLY[@]})) || return 0
+
 # post process the reply
 if [[ ${_IPSET_COMPL_OPT_FORMAT:=long} = long ]]; then # choose on env var 
     for ridx in ${!COMPREPLY[@]}; do # remove short version of options
@@ -219,22 +233,18 @@ elif [[ ${_IPSET_COMPL_OPT_FORMAT} = short ]]; then
     done
 fi
 for idx in ${!arr_used_opts[@]}; do
-    # if the user supplied the short form of an option previously, and now requests the long form,
-    # remove the corresponding long option, vice versa for short options
+    # if the user supplied the short form of an option previously,
+    # and now requests the long form, remove the corresponding long option,
+    # vice versa for short options
     for oidx in ${!arr_opts[@]}; do # cycle through main options
         set -- ${arr_opts[oidx]} # $1 = short , $2 = long option
-        str_tmp=""
         [[ $1 = $cur ]] && continue
-        if [[ ${arr_used_opts[idx]} = $1 ]]; then # we got short version on the cmdline
-            str_tmp=$2
-        elif [[ ${arr_used_opts[idx]} = $2 ]]; then # we got long version on the cmdline
-            str_tmp=$1
-        fi
-        [[ $str_tmp ]] || continue
+        [[ ${arr_used_opts[idx]} =~ ^($1|$2)$ ]] || continue
         for ridx in ${!COMPREPLY[@]}; do # compare with compreply
-            if [[ ${COMPREPLY[ridx]} = $str_tmp ]]; then
+            if [[ ${COMPREPLY[ridx]} = ${BASH_REMATCH[1]} ]]; then
                 if [[ $_DEBUG_IPSET_COMPL ]]; then
-                    printf "removing option alias - unsetting COMPREPLY[$ridx]: %s\n" "${COMPREPLY[ridx]}"
+                    printf "removing option alias COMPREPLY[$ridx]: %s\n" \
+                        "${COMPREPLY[ridx]}"
                 fi
                 unset COMPREPLY[ridx]
                 break 2
@@ -242,9 +252,11 @@ for idx in ${!arr_used_opts[@]}; do
         done
     done
     for ridx in ${!COMPREPLY[@]}; do # de-dupe options
-        if [[ ${arr_used_opts[idx]} = ${COMPREPLY[ridx]} && ${COMPREPLY[ridx]} != $cur ]]; then
+        if [[ ${arr_used_opts[idx]} = ${COMPREPLY[ridx]} && \
+            ${COMPREPLY[ridx]} != $cur ]]; then
             if [[ $_DEBUG_IPSET_COMPL ]]; then
-                printf "removing dupe option - unsetting COMPREPLY[$ridx]: %s\n" "${COMPREPLY[ridx]}"
+                printf "removing dupe option COMPREPLY[$ridx]: %s\n" \
+                    "${COMPREPLY[ridx]}"
             fi
             unset COMPREPLY[ridx]
             break
@@ -320,17 +332,19 @@ done < <(PATH=${PATH}:/sbin command ip -o link show)
 _ipset_complete_iface_spec() {
 if [[ $cur != *,* ]]; then
     compopt -o nospace
-	if ((got_bashcompl)); then
-	   	_known_hosts_real -a -- "$cur"
-	else
-		COMPREPLY=( $( compgen -A hostname "$cur" ) )
-		_ipset_colon_ltrim "$cur"
-	fi
+    # hostnames
+    if ((got_bashcompl)); then
+           _known_hosts_real -a -- "$cur"
+    else
+        COMPREPLY=( $( compgen -A hostname "$cur" ) )
+        _ipset_colon_ltrim "$cur"
+    fi
+    # networks
     x=${#COMPREPLY[@]}
     while read; do
         [[ $REPLY = $cur* ]] && COMPREPLY[x++]="$REPLY"
     done < <(_ipset_get_networks)
-	_ipset_colon_ltrim "$cur"
+    _ipset_colon_ltrim "$cur"
     ((${#COMPREPLY[@]} == 1)) && COMPREPLY=( ${COMPREPLY[*]}, )
 elif [[ $cur = *,* ]]; then
     str_tmp="${cur}" cur="${cur#*,}" str_var=""
@@ -358,17 +372,17 @@ fi
 str_regex='^[^,]+,([^,]+)?$'
 if [[ $cur != *,* ]]; then
     compopt -o nospace
-	if ((got_bashcompl)); then
-	   	_known_hosts_real -a -- "$cur"
-	else
-		COMPREPLY=( $( compgen -A hostname "$cur" ) )
-		_ipset_colon_ltrim "$cur"
-	fi
+    if ((got_bashcompl)); then
+        _known_hosts_real -a -- "$cur"
+    else
+        COMPREPLY=( $( compgen -A hostname "$cur" ) )
+        _ipset_colon_ltrim "$cur"
+    fi
     if [[ $str_type = hash:net,port ]]; then
         while read; do
             [[ $REPLY = $cur* ]] && COMPREPLY[x++]="$REPLY"
         done < <(_ipset_get_networks)
-		_ipset_colon_ltrim "$cur"
+        _ipset_colon_ltrim "$cur"
     fi
     ((${#COMPREPLY[@]} == 1)) && COMPREPLY=( ${COMPREPLY[*]}, )
 elif [[ $cur =~ $str_regex ]]; then
@@ -391,8 +405,8 @@ elif [[ $cur =~ $str_regex ]]; then
             str_var="${str_var#${BASH_REMATCH[1]}:}"
             str_tmp=${str_tmp%"$cur"} str_var="${str_var%-*}"
         fi
-        COMPREPLY=( $( compgen -P "$str_tmp" -S "$str_suffix" \
-            -W '$(_ipset_get_services -p "$str_proto" -o "$str_var")' -- "$cur" ) )
+        COMPREPLY=( $( compgen -P "$str_tmp" -S "$str_suffix" -W \
+            '$(_ipset_get_services -p "$str_proto" -o "$str_var")' -- "$cur") )
         if [[ $str_tmp = *:* ]]; then
             str_tmp="${str_tmp%:*}:"
         fi
@@ -405,21 +419,26 @@ elif [[ $cur =~ $str_regex ]]; then
         cur="${cur#${BASH_REMATCH[1]}:}"
         str_tmp="${str_tmp}${BASH_REMATCH[1]}:"
         if [[ $str_var = icmp ]]; then
-            COMPREPLY=( $( compgen -P "$str_tmp" -S "$str_suffix" -W '${arr_icmp_types[@]}' -- "$cur" ) )
+            COMPREPLY=( $( compgen -P "$str_tmp" -S "$str_suffix" -W \
+                '${arr_icmp_types[@]}' -- "$cur" ) )
         elif [[ $str_var = icmp6 ]]; then
-            COMPREPLY=( $( compgen -P "$str_tmp" -S "$str_suffix" -W '${arr_icmp6_types[@]}' -- "$cur" ) )
+            COMPREPLY=( $( compgen -P "$str_tmp" -S "$str_suffix" -W \
+                '${arr_icmp6_types[@]}' -- "$cur" ) )
         elif [[ $str_var = @(tcp|udp|sctp|udplite) ]]; then
-            COMPREPLY=( $( compgen -P "$str_tmp" -W '$(_ipset_get_services -p $str_var)' -- "$cur" ) )
+            COMPREPLY=( $( compgen -P "$str_tmp" -W \
+                '$(_ipset_get_services -p $str_var)' -- "$cur" ) )
             compopt -o nospace
         fi
         _ipset_colon_ltrim "$str_tmp"
     elif [[ $cur = *,* ]]; then # first attempt :/ long list
-        # add the prefix list
-        str_tmp="${cur%,*}," cur="${cur#*,}" str_var="tcp: udp: sctp: udplite: icmp: icmp6:"
+        str_tmp="${cur%,*}," cur="${cur#*,}"
+        str_var="tcp: udp: sctp: udplite: icmp: icmp6:"
         # add the services
-        COMPREPLY=( $( compgen -P "$str_tmp" -W '$str_var $(_ipset_get_services -p tcp)' -- "$cur" ) )
+        COMPREPLY=( $( compgen -P "$str_tmp" -W \
+            '$str_var $(_ipset_get_services -p tcp)' -- "$cur" ) )
         x=${#COMPREPLY[@]}
-        for str_tmp in $( compgen -P "$str_tmp" -S ":0$str_suffix" -W '$(_ipset_get_protocols)' -- "$cur" )
+        for str_tmp in $( compgen -P "$str_tmp" -S ":0$str_suffix" -W \
+            '$(_ipset_get_protocols)' -- "$cur" )
         do
             COMPREPLY[x++]="$str_tmp" # add the protocols
             _ipset_colon_ltrim "$cur"
@@ -428,17 +447,17 @@ elif [[ $cur =~ $str_regex ]]; then
     fi
     ((${#COMPREPLY[@]} == 1)) && COMPREPLY=( ${COMPREPLY[*]}, )
 elif [[ $cur = *,*,* && $str_type = hash:ip,port,@(ip|net) ]]; then
-	if ((got_bashcompl)); then
-	   	_known_hosts_real -a -- "$cur"
-	else
-		COMPREPLY=( $( compgen -A hostname "$cur" ) )
-		_ipset_colon_ltrim "$cur"
-	fi
+    if ((got_bashcompl)); then
+           _known_hosts_real -a -- "$cur"
+    else
+        COMPREPLY=( $( compgen -A hostname "$cur" ) )
+        _ipset_colon_ltrim "$cur"
+    fi
     if [[ $str_type = hash:ip,port,net ]]; then
         while read; do
             [[ $REPLY = $cur* ]] && COMPREPLY[x++]="$REPLY"
         done < <(_ipset_get_networks)
-		_ipset_colon_ltrim "$cur"
+        _ipset_colon_ltrim "$cur"
     fi
 fi
 }
@@ -768,22 +787,22 @@ elif ((cword == action_index+2)) && [[ $str_setname = $prev ]]; then
             str_type=$(_ipset_get_set_type "$str_setname")
             case "$str_type" in
                 hash:ip|bitmap:ip|bitmap:ip,mac|hash:net)
-					if ((got_bashcompl)); then
-						_known_hosts_real -a -- "$cur"
-					else
-						COMPREPLY=( $( compgen -A hostname "$cur" ) )
-						_ipset_colon_ltrim "$cur"
-					fi
-					if [[ $str_type = bitmap:ip,mac ]]; then
-						compopt -o nospace
-						((${#COMPREPLY[@]} == 1)) && COMPREPLY=( ${COMPREPLY[*]}, )
-					elif [[ $str_type = hash:net ]]; then
-						x=${#COMPREPLY[@]}
-						while read; do
-							[[ $REPLY = $cur* ]] && COMPREPLY[x++]="$REPLY"
-						done < <(_ipset_get_networks)
-						_ipset_colon_ltrim "$cur"
-					fi
+                    if ((got_bashcompl)); then
+                        _known_hosts_real -a -- "$cur"
+                    else
+                        COMPREPLY=( $( compgen -A hostname "$cur" ) )
+                        _ipset_colon_ltrim "$cur"
+                    fi
+                    if [[ $str_type = bitmap:ip,mac ]]; then
+                        compopt -o nospace
+                        ((${#COMPREPLY[@]} == 1)) && COMPREPLY=( ${COMPREPLY[*]}, )
+                    elif [[ $str_type = hash:net ]]; then
+                        x=${#COMPREPLY[@]}
+                        while read; do
+                            [[ $REPLY = $cur* ]] && COMPREPLY[x++]="$REPLY"
+                        done < <(_ipset_get_networks)
+                        _ipset_colon_ltrim "$cur"
+                    fi
                 ;;
                 # show sets if the set to add is of type list:set
                 list:*) arr_tmp=() arr_sets=( $(ipset list -n ) )
