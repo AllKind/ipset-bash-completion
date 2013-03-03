@@ -242,7 +242,7 @@ for idx in ${!arr_used_opts[@]}; do
         [[ ${arr_used_opts[idx]} =~ ^($1|$2)$ ]] || continue
         for ridx in ${!COMPREPLY[@]}; do # compare with compreply
             if [[ ${COMPREPLY[ridx]} = ${BASH_REMATCH[1]} ]]; then
-                if [[ $_DEBUG_IPSET_COMPL ]]; then
+                if [[ $_DEBUG_NF_COMPLETION ]]; then
                     printf "removing option alias COMPREPLY[$ridx]: %s\n" \
                         "${COMPREPLY[ridx]}"
                 fi
@@ -254,7 +254,7 @@ for idx in ${!arr_used_opts[@]}; do
     for ridx in ${!COMPREPLY[@]}; do # de-dupe options
         if [[ ${arr_used_opts[idx]} = ${COMPREPLY[ridx]} && \
             ${COMPREPLY[ridx]} != $cur ]]; then
-            if [[ $_DEBUG_IPSET_COMPL ]]; then
+            if [[ $_DEBUG_NF_COMPLETION ]]; then
                 printf "removing dupe option COMPREPLY[$ridx]: %s\n" \
                     "${COMPREPLY[ridx]}"
             fi
@@ -572,8 +572,8 @@ else got_bashcompl=0 # not so neat, but a workaround
     for i in ${!COMP_WORDS[@]}; do words[i]="${COMP_WORDS[i]}"; done
 fi
 
-#_DEBUG_IPSET_COMPL=Y
-if [[ $_DEBUG_IPSET_COMPL ]]; then
+#_DEBUG_NF_COMPLETION=Y
+if [[ $_DEBUG_NF_COMPLETION ]]; then
     printf "\nCOMP_WORDBREAKS: <%s>\n" "$COMP_WORDBREAKS"
     printf "COMP_LINE: <%s>\n" "$COMP_LINE"
     printf "COMP_TYPE: <%s>\n" "$COMP_TYPE"
@@ -661,7 +661,7 @@ case "${words[i]}" in
 esac
 done
 
-if [[ $_DEBUG_IPSET_COMPL ]]; then
+if [[ $_DEBUG_NF_COMPLETION ]]; then
     printf "\ngot_action: <%s>\n" "$got_action"
     printf "str_action: <%s>\n" "$str_action"
     printf "action_index: <%s>\n" "$action_index"
