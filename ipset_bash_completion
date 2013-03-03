@@ -839,7 +839,8 @@ elif ((cword == action_index+2)) && [[ $str_setname = $prev ]]; then
                     else str_tmp=""
                         compopt -o nospace
                     fi
-                    COMPREPLY=( $( compgen -P "$str_tmp" -S "$str_suffix" -W '$(_ipset_get_services -o $str_var)' -- "$cur" ) )
+                    COMPREPLY=( $( compgen -P "$str_tmp" -S "$str_suffix" \
+                        -W '$(_ipset_get_services -o $str_var)' -- "$cur" ) )
                 ;;
                 hash:@(ip,port|ip,port,ip|ip,port,net|net,port))
                         _ipset_complete_hostport_spec
@@ -851,7 +852,8 @@ elif ((cword == action_index+2)) && [[ $str_setname = $prev ]]; then
         ;;
         del|test)
             str_type=$(_ipset_get_set_type "$str_setname")
-            if [[ $str_action = del && $str_type = bitmap:@(ip|port) ]]; then # complete members
+            if [[ $str_action = del && $str_type = bitmap:@(ip|port) ]]; then
+                # complete members
                 str_prefix=""
                 _ipset_get_members --names-only "$str_setname"
                 if [[ $cur = *-* ]]; then
@@ -949,29 +951,43 @@ elif ((cword == action_index+3)) && [[ $cur != -* ]]; then
             fi
             case "$str_type" in
                 hash:*net*)
-                    COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts $str_timeout $str_counters nomatch)' -- "$cur" ) )
+                    COMPREPLY=( $( compgen -W \
+                        '$(_ipset_dedupe_cmd_opts $str_timeout $str_counters nomatch)' \
+                        -- "$cur" ) )
                 ;;
                 hash:*!(net)*|bitmap:*)
-                    COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts $str_timeout $str_counters)' -- "$cur" ) )
+                    COMPREPLY=( $( compgen -W \
+                        '$(_ipset_dedupe_cmd_opts $str_timeout $str_counters)' \
+                        -- "$cur" ) )
                 ;;
                 list:*)
-                    COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts $str_order $str_timeout $str_counters)' -- "$cur" ) )
+                    COMPREPLY=( $( compgen -W \
+                        '$(_ipset_dedupe_cmd_opts $str_order $str_timeout $str_counters)' \
+                        -- "$cur" ) )
                 ;;
             esac
         ;;
         create|n)
             case "$prev" in
                 hash:*)
-                    COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts family hashsize timeout maxelem $str_counters)' -- "$cur" ) )
+                    COMPREPLY=( $( compgen -W \
+                        '$(_ipset_dedupe_cmd_opts family hashsize timeout maxelem $str_counters)' \
+                        -- "$cur" ) )
                 ;;
                 bitmap:ip)
-                    COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts range netmask timeout $str_counters)' -- "$cur" ) )
+                    COMPREPLY=( $( compgen -W \
+                        '$(_ipset_dedupe_cmd_opts range netmask timeout $str_counters)' \
+                    -- "$cur" ) )
                 ;;
                 bitmap:!(ip)?*)
-                    COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts range timeout $str_counters)' -- "$cur" ) )
+                    COMPREPLY=( $( compgen -W \
+                        '$(_ipset_dedupe_cmd_opts range timeout $str_counters)' \
+                        -- "$cur" ) )
                 ;;
                 list:*)
-                    COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts size timeout $str_counters)' -- "$cur" ) )
+                    COMPREPLY=( $( compgen -W \
+                        '$(_ipset_dedupe_cmd_opts size timeout $str_counters)' \
+                        -- "$cur" ) )
                 ;;
             esac
         ;;
@@ -985,7 +1001,8 @@ elif ((cword == action_index+3)) && [[ $cur != -* ]]; then
 elif ((cword == action_index+3)) && [[ $cur = -* ]]; then
     _ipset_get_options
 elif ((cword >= action_index+4)); then # add options following
-    if [[ $cur = -* && $prev != @(timeout|hashsize|size|family|maxelem|range|netmask|before|after|counters) ]]
+    if [[ $cur = -* && \
+        $prev != @(timeout|hashsize|size|family|maxelem|range|netmask|before|after|counters) ]]
     then _ipset_get_options
         return 0
     fi
@@ -997,13 +1014,17 @@ elif ((cword >= action_index+4)); then # add options following
             else
                 str_timeout=""
             fi
-            for ((x=$action_index+3; x < ${#words[@]}; x++)); do # validate option argument values
-                [[ ${words[x]} = timeout && ${words[x+1]} != @(+([[:digit:]])|0x+([[:xdigit:]])) ]] && return 0
+            # validate option argument values
+            for ((x=$action_index+3; x < ${#words[@]}; x++)); do
+                [[ ${words[x]} = timeout && \
+                    ${words[x+1]} != @(+([[:digit:]])|0x+([[:xdigit:]])) ]] && return 0
             done
             case "$str_type" in
                 hash:*net*)
                     if [[ $prev != timeout ]]; then
-                        COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts $str_timeout $str_counters nomatch)' -- "$cur" ) )
+                        COMPREPLY=( $( compgen -W \
+                            '$(_ipset_dedupe_cmd_opts $str_timeout $str_counters nomatch)' \
+                            -- "$cur" ) )
                     fi
                 ;;
                 list:*)
@@ -1012,7 +1033,9 @@ elif ((cword >= action_index+4)); then # add options following
                         COMPREPLY=( $( compgen -W '${arr_members[@]}' -- "$cur" ) )
                         _ipset_colon_ltrim "$cur"
                     elif [[ $prev != timeout ]]; then
-                        COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts $str_order $str_timeout $str_counters)' -- "$cur" ) )
+                        COMPREPLY=( $( compgen -W \
+                            '$(_ipset_dedupe_cmd_opts $str_order $str_timeout $str_counters)' \
+                            -- "$cur" ) )
                     fi
                 ;;
             esac
@@ -1043,24 +1066,34 @@ elif ((cword >= action_index+4)); then # add options following
             case "${words[action_index+2]}" in # must be the set type
                 hash:*)
                     if [[ $prev = family ]]; then
-                        COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts inet inet6)' -- "$cur" ) )
+                        COMPREPLY=( $( compgen -W \
+                            '$(_ipset_dedupe_cmd_opts inet inet6)' \
+                            -- "$cur" ) )
                     elif [[ $prev != @(family|hashsize|timeout|maxelem) ]]; then
-                        COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts family hashsize timeout maxelem $str_counters)' -- "$cur" ) )
+                        COMPREPLY=( $( compgen -W \
+                            '$(_ipset_dedupe_cmd_opts family hashsize timeout maxelem $str_counters)' \
+                            -- "$cur" ) )
                     fi
                 ;;
                 bitmap:ip)
                     if [[ $prev != @(range|netmask|timeout) ]]; then
-                        COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts range netmask timeout $str_counters)' -- "$cur" ) )
+                        COMPREPLY=( $( compgen -W \
+                            '$(_ipset_dedupe_cmd_opts range netmask timeout $str_counters)' \
+                            -- "$cur" ) )
                     fi
                 ;;
                 bitmap:!(ip)?*)
                     if [[ $prev != @(range|timeout) ]]; then
-                        COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts range timeout $str_counters)' -- "$cur" ) )
+                        COMPREPLY=( $( compgen -W \
+                            '$(_ipset_dedupe_cmd_opts range timeout $str_counters)' \
+                            -- "$cur" ) )
                     fi
                 ;;
                 list:*)
                     if [[ $prev != @(size|timeout) ]]; then
-                        COMPREPLY=( $( compgen -W '$(_ipset_dedupe_cmd_opts size timeout $str_counters)' -- "$cur" ) )
+                        COMPREPLY=( $( compgen -W \
+                            '$(_ipset_dedupe_cmd_opts size timeout $str_counters)' \
+                            -- "$cur" ) )
                     fi
                 ;;
             esac
@@ -1078,7 +1111,8 @@ elif ((cword >= action_index+4)); then # add options following
                 else str_tmp="" str_suffix=-
                     compopt -o nospace
                 fi
-                COMPREPLY=( $( compgen -P "$str_tmp" -S "$str_suffix" -W '$(_ipset_get_services -o $str_var)' -- "$cur" ) )
+                COMPREPLY=( $( compgen -P "$str_tmp" -S "$str_suffix" \
+                    -W '$(_ipset_get_services -o $str_var)' -- "$cur" ) )
             fi
         ;;
         del|test)
@@ -1086,11 +1120,13 @@ elif ((cword >= action_index+4)); then # add options following
             case "$str_type" in
                 list:*) arr_tmp=()
                     _ipset_get_members --names-only "$str_setname"
-                    if [[ $prev = @(before|after) ]] && ((cword-1 == order_index)); then
+                    if [[ $prev = @(before|after) ]] && ((cword-1 == order_index))
+                    then
                         case "$prev" in
                             before)
                                 for x in ${!arr_members[@]}; do
-                                    if [[ ${arr_members[x]} = ${words[action_index+2]} ]]; then
+                                    if [[ ${arr_members[x]} = ${words[action_index+2]} ]]
+                                    then
                                         if [[ ${arr_members[x+1]} ]]; then
                                             arr_tmp[${#arr_tmp[@]}]=${arr_members[x+1]}
                                             break
@@ -1100,7 +1136,8 @@ elif ((cword >= action_index+4)); then # add options following
                                 ;;
                             after)
                                 for x in ${!arr_members[@]}; do
-                                    if [[ ${arr_members[x]} = ${words[action_index+2]} ]]; then
+                                    if [[ ${arr_members[x]} = ${words[action_index+2]} ]]
+                                    then
                                         if ((x>0)) && [[ ${arr_members[x-1]} ]]; then
                                             arr_tmp[${#arr_tmp[@]}]=${arr_members[x-1]}
                                             break
@@ -1136,7 +1173,9 @@ else
     elif ((use_file)); then
         COMPREPLY=( $( compgen -W 'list save restore' -- "$cur" ) )
     else
-    COMPREPLY=( $( compgen -W 'create n add del test destroy x list save restore flush rename e swap w help version' -- "$cur" ) )
+    COMPREPLY=( $( compgen -W \
+        'create n add del test destroy x list save restore flush rename e swap w help version' \
+        -- "$cur" ) )
     fi
 fi
 fi
