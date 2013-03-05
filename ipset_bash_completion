@@ -334,7 +334,7 @@ if [[ $cur != *,* ]]; then
     compopt -o nospace
     # hostnames
     if ((got_bashcompl)); then
-        _known_hosts_real -F "$_IPSET_SSH_KNOWN_HOSTS_FILES" -- "$cur"
+        _known_hosts_real -F "$_IPSET_SSH_CONFIGS" -- "$cur"
     else
         COMPREPLY=( $( compgen -A hostname "$cur" ) )
         _ipset_colon_ltrim "$cur"
@@ -373,7 +373,7 @@ str_regex='^[^,]+,([^,]+)?$'
 if [[ $cur != *,* ]]; then
     compopt -o nospace
     if ((got_bashcompl)); then
-        _known_hosts_real -F "$_IPSET_SSH_KNOWN_HOSTS_FILES" -- "$cur"
+        _known_hosts_real -F "$_IPSET_SSH_CONFIGS" -- "$cur"
     else
         COMPREPLY=( $( compgen -A hostname "$cur" ) )
         _ipset_colon_ltrim "$cur"
@@ -448,7 +448,7 @@ elif [[ $cur =~ $str_regex ]]; then
     ((${#COMPREPLY[@]} == 1)) && COMPREPLY=( ${COMPREPLY[*]}, )
 elif [[ $cur = *,*,* && $str_type = hash:ip,port,@(ip|net) ]]; then
     if ((got_bashcompl)); then
-        _known_hosts_real -F "$_IPSET_SSH_KNOWN_HOSTS_FILES" -- "$cur"
+        _known_hosts_real -F "$_IPSET_SSH_CONFIGS" -- "$cur"
     else
         COMPREPLY=( $( compgen -A hostname "$cur" ) )
         _ipset_colon_ltrim "$cur"
@@ -796,7 +796,7 @@ elif ((cword == action_index+2)) && [[ $str_setname = $prev ]]; then
             case "$str_type" in
                 hash:ip|bitmap:ip|hash:net)
                     if ((got_bashcompl)); then
-                        _known_hosts_real -F "$_IPSET_SSH_KNOWN_HOSTS_FILES" -- "$cur"
+                        _known_hosts_real -F "$_IPSET_SSH_CONFIGS" -- "$cur"
                     else
                         COMPREPLY=( $( compgen -A hostname "$cur" ) )
                         _ipset_colon_ltrim "$cur"
@@ -831,7 +831,7 @@ elif ((cword == action_index+2)) && [[ $str_setname = $prev ]]; then
                         fi
                     else
                         if ((got_bashcompl)); then
-                            _known_hosts_real -F "$_IPSET_SSH_KNOWN_HOSTS_FILES" -- "$cur"
+                            _known_hosts_real -F "$_IPSET_SSH_CONFIGS" -- "$cur"
                         else
                             COMPREPLY=( $( compgen -A hostname "$cur" ) )
                             _ipset_colon_ltrim "$cur"
