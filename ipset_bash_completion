@@ -345,7 +345,13 @@ if [[ $cur != *,* ]]; then
         [[ $REPLY = $cur* ]] && COMPREPLY[x++]="$REPLY"
     done < <(_ipset_get_networks)
     _ipset_colon_ltrim "$cur"
-    ((${#COMPREPLY[@]} == 1)) && COMPREPLY=( ${COMPREPLY[*]}, )
+    if ((${#COMPREPLY[@]} == 1)); then
+		if [[ ${COMPREPLY[*]} = */* ]]; then
+		   COMPREPLY=( ${COMPREPLY[*]}, )
+		else
+		   COMPREPLY=( ${COMPREPLY[*]}/ )
+		fi
+	fi
 elif [[ $cur = *,* ]]; then
     str_tmp="${cur}" cur="${cur#*,}" str_var=""
     str_tmp="${str_tmp%"$cur"}"
