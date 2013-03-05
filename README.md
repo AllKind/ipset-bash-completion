@@ -85,6 +85,12 @@ If it is set to 'members' it will list the members of the set.
 If it is set to 'spec' it will follow the format of a port specification ([proto:]port).
 If it is set to any other value both methods are used to generate the list of possible completions (this is the default).
 
+When adding elements to a bitmap:ip,mac type of set, the environment variable _IPSET_MACLIST_FILE will be queried
+for a file containing a list of mac addresses.
+The file should contain one mac address per line.
+Empty lines and comments (also after the address) are supported.
+
+
 Compatibility
 =============
 
