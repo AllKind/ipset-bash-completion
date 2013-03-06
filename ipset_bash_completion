@@ -337,9 +337,8 @@ _ipset_complete_iface_spec() {
 if [[ $cur != *,* ]]; then
     compopt -o nospace
     # networks
-    x=${#COMPREPLY[@]}
     while read; do
-        [[ $REPLY = $cur* ]] && COMPREPLY[x++]="$REPLY"
+        [[ $REPLY = $cur* ]] && COMPREPLY+=( "$REPLY" )
     done < <(_ipset_get_networks)
     # hostnames
     if ((got_bashcompl)); then
@@ -382,9 +381,8 @@ str_regex='^[^,]+,([^,]+)?$'
 if [[ $cur != *,* ]]; then
     compopt -o nospace
     if [[ $str_type = hash:net,port ]]; then
-        x=${#COMPREPLY[@]}
         while read; do
-            [[ $REPLY = $cur* ]] && COMPREPLY[x++]="$REPLY"
+            [[ $REPLY = $cur* ]] && COMPREPLY+=( "$REPLY" )
         done < <(_ipset_get_networks)
         _ipset_colon_ltrim "$cur"
     fi
@@ -394,9 +392,19 @@ if [[ $cur != *,* ]]; then
         COMPREPLY+=( $( compgen -A hostname "$cur" ) )
         _ipset_colon_ltrim "$cur"
     fi
-    ((${#COMPREPLY[@]} == 1)) && COMPREPLY=( ${COMPREPLY[*]}, )
+    if ((${#COMPREPLY[@]} == 1)); then
+        if [[ $str_type = hash:net,port ]]; then
+            if [[ ${COMPREPLY[*]} = */* ]]; then
+               COMPREPLY=( ${COMPREPLY[*]}, )
+            else
+               COMPREPLY=( ${COMPREPLY[*]}/ )
+            fi
+        else
+            COMPREPLY=( ${COMPREPLY[*]}, )
+        fi
+    fi
 elif [[ $cur =~ $str_regex ]]; then
-    compopt -o nospace
+    (( $(IFS=,; set -- $str_type; printf "%d\n" $#) == 3 )) && compopt -o nospace
     str_glob='[^\[]*-' # otherwise messes up my vim syntax highlightning
     str_regex='.*,(icmp|icmp6|tcp|sctp|udp|udplite):.*' # for compat put regex in var
     if [[ $cur != *icmp* && $cur = *,@(?(tcp:|sctp:|udp:|udplite:)@(+([[:word:]])-|\[*-*\]-)|\[*-*\]-)* ]]
@@ -446,11 +454,10 @@ elif [[ $cur =~ $str_regex ]]; then
         # add the services
         COMPREPLY=( $( compgen -P "$str_prefix" -W \
             '$str_var $(_ipset_get_services -p tcp)' -- "$cur" ) )
-        x=${#COMPREPLY[@]}
         for str_var in $( compgen -P "$str_prefix" -S ":0$str_suffix" -W \
             '$(_ipset_get_protocols)' -- "$cur" )
         do
-            COMPREPLY[x++]="$str_var" # add the protocols
+            COMPREPLY+=( "$str_var" ) # add the protocols
         done
         _ipset_colon_ltrim "$str_prefix$cur"
         compopt -o nospace
@@ -460,17 +467,24 @@ elif [[ $cur = *,*,* && $str_type = hash:ip,port,@(ip|net) ]]; then
     str_prefix="${cur}" cur="${cur##*,}"
     str_prefix="${str_prefix%"$cur"}"
     if [[ $str_type = hash:ip,port,net ]]; then
-        x=${#COMPREPLY[@]}
         while read; do
-            [[ $REPLY = $cur* ]] && COMPREPLY[x++]="$str_prefix$REPLY"
+            [[ $REPLY = $cur* ]] && COMPREPLY+=( "$str_prefix$REPLY" )
         done < <(_ipset_get_networks)
-#        _ipset_colon_ltrim "$str_prefix$cur"
+        _ipset_colon_ltrim "$str_prefix$cur"
     fi
     if ((got_bashcompl)); then
         _known_hosts_real -p "$str_prefix" -F "$_IPSET_SSH_CONFIGS" -- "$cur"
     else
         COMPREPLY+=( $( compgen -P "$str_prefix" -A hostname "$cur" ) )
         _ipset_colon_ltrim "$str_prefix$cur"
+    fi
+    if ((${#COMPREPLY[@]} == 1)); then
+        if [[ $str_type = hash:ip,port,net ]]; then
+            if [[ ${COMPREPLY[*]} != */* ]]; then
+                compopt -o nospace
+                COMPREPLY=( ${COMPREPLY[*]}/ )
+            fi
+        fi
     fi
 fi
 }
@@ -781,9 +795,8 @@ if ((cword == action_index+1)) && [[ $str_action = $prev ]]; then
             if [[ $cur = -* ]]; then
                 _ipset_get_options
                 if _ipset_is_set "${cur}*"; then
-                    x=${#COMPREPLY[@]}
                     for i in ${!arr_sets[@]}; do
-                        [[ ${arr_sets[i]} = $cur* ]] && COMPREPLY[x++]="${arr_sets[i]}"
+                        [[ ${arr_sets[i]} = $cur* ]] && COMPREPLY+=( "${arr_sets[i]}" )
                     done
                     _ipset_colon_ltrim "$cur"
                 fi
@@ -837,10 +850,15 @@ elif ((cword == action_index+2)) && [[ $str_setname = $prev ]]; then
                         compopt -o nospace
                         ((${#COMPREPLY[@]} == 1)) && COMPREPLY=( ${COMPREPLY[*]}, )
                     elif [[ $str_type = hash:net ]]; then
-                        x=${#COMPREPLY[@]}
                         while read; do
-                            [[ $REPLY = $cur* ]] && COMPREPLY[x++]="$REPLY"
+                            [[ $REPLY = $cur* ]] && COMPREPLY+=( "$REPLY" )
                         done < <(_ipset_get_networks)
+                        if ((${#COMPREPLY[@]} == 1)); then
+                            if [[ ${COMPREPLY[*]} != */* ]]; then
+                                compopt -o nospace
+                                COMPREPLY=( ${COMPREPLY[*]}/ )
+                            fi
+                        fi
                         _ipset_colon_ltrim "$cur"
                     fi
                 ;;
@@ -871,13 +889,13 @@ elif ((cword == action_index+2)) && [[ $str_setname = $prev ]]; then
                                 REPLY=${REPLY%+([[:blank:]])brd*}
                                 [[ $REPLY =~ $str_regex ]] && printf "%s\n" "$REPLY"
                                 done < <(PATH=$PATH:/sbin ip -o link show))"
-							if [[ -r /etc/ethers ]]; then
-								str_tmp+=$(while read -r addr rest; do
-									[[ $addr =~ $str_regex ]] && printf "%s\n" "$addr"
-									done < /etc/ethers)
-							fi
-							COMPREPLY=( $( compgen -P "$str_prefix" -W "$str_tmp" \
-								-- "$cur" ) )
+                            if [[ -r /etc/ethers ]]; then
+                                str_tmp+=$(while read -r addr rest; do
+                                    [[ $addr =~ $str_regex ]] && printf "%s\n" "$addr"
+                                    done < /etc/ethers)
+                            fi
+                            COMPREPLY=( $( compgen -P "$str_prefix" -W "$str_tmp" \
+                                -- "$cur" ) )
                             _ipset_colon_ltrim "$str_prefix$cur"
                         fi
                     else
@@ -957,9 +975,8 @@ elif ((cword == action_index+2)) && [[ $str_setname = $prev ]]; then
                 else
                     _ipset_get_members --names-only "$str_setname"
                     _ipset_complete_hostport_spec
-                    x=${#COMPREPLY[@]}
                     for i in ${!arr_members[@]}; do
-                        [[ ${arr_members[i]} = $cur* ]] && COMPREPLY[x++]="${arr_members[i]}"
+                        [[ ${arr_members[i]} = $cur* ]] && COMPREPLY+=( "${arr_members[i]}" )
                     done
                     _ipset_colon_ltrim "$cur"
                 fi
@@ -974,9 +991,8 @@ elif ((cword == action_index+2)) && [[ $str_setname = $prev ]]; then
                 else
                     _ipset_get_members --names-only "$str_setname"
                     _ipset_complete_hostport_spec
-                    x=${#COMPREPLY[@]}
                     for i in ${!arr_members[@]}; do
-                        [[ ${arr_members[i]} = $cur* ]] && COMPREPLY[x++]="${arr_members[i]}"
+                        [[ ${arr_members[i]} = $cur* ]] && COMPREPLY+=( "${arr_members[i]}" )
                     done
                     _ipset_colon_ltrim "$cur"
                 fi
@@ -990,9 +1006,8 @@ elif ((cword == action_index+2)) && [[ $str_setname = $prev ]]; then
                 else
                     _ipset_get_members --names-only "$str_setname"
                     _ipset_complete_iface_spec
-                    x=${#COMPREPLY[@]}
                     for i in ${!arr_members[@]}; do
-                        [[ ${arr_members[i]} = $cur* ]] && COMPREPLY[x++]="${arr_members[i]}"
+                        [[ ${arr_members[i]} = $cur* ]] && COMPREPLY+=( "${arr_members[i]}" )
                     done
                     _ipset_colon_ltrim "$cur"
                 fi
@@ -1006,9 +1021,8 @@ elif ((cword == action_index+2)) && [[ $str_setname = $prev ]]; then
                 else
                     _ipset_get_members --names-only "$str_setname"
                     _ipset_complete_iface_spec
-                    x=${#COMPREPLY[@]}
                     for i in ${!arr_members[@]}; do
-                        [[ ${arr_members[i]} = $cur* ]] && COMPREPLY[x++]="${arr_members[i]}"
+                        [[ ${arr_members[i]} = $cur* ]] && COMPREPLY+=( "${arr_members[i]}" )
                     done
                     _ipset_colon_ltrim "$cur"
                 fi
