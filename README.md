@@ -4,11 +4,12 @@ ipset-bash-completion
 Description
 ===========
 
-Programmable completion specification (compspec) for the bash shell to support the ipset program (netfilter.org).
+Programmable completion specification (compspec) for the bash shell
+to support the ipset program (netfilter.org).
 
 
-Programmable completion allows the user, while working in an interactive shell, to retrieve and auto-complete commands,
-their options, filenames, etc.
+Programmable completion allows the user, while working in an interactive shell,
+to retrieve and auto-complete commands, their options, filenames, etc.
 Pressing [TAB] will complete on the current word, if only one match is found.
 If multiple completions are possible, they will be listed by hitting [TAB] again.
 
@@ -16,17 +17,19 @@ If multiple completions are possible, they will be listed by hitting [TAB] again
 Features
 ========
 
-This completion specification follows the logic of ipset and will only show commands and options, 
-when they are available for the current context (combination of commands and/or options).
+This completion specification follows the logic of ipset and
+ will show commands and options only when they are available for the current context
+(combination of commands and/or options).
 Providing some kind of interactive help.
 
 - Show and complete commands and options.
 - Show and complete set names.
 - Show and complete the set types when using the create and help command.
 - Show and complete set elements (members) when using the del command.
-- Show and complete services (also named port ranges), protocols, icmp[6] types and interface names when adding elements.
+- Show and complete services (also named port ranges), protocols,
+icmp[6] types and interface names when adding elements.
 - Show and complete hostnames, when adding, deleting or testing elements.
-- Show and complete mac addresses (queried from file).
+- Show and complete mac addresses.
 - Complete on filenames if the current option requires it.
 - Complete variable names, command subtitution and globbing patterns.
 - Do not complete if an invalid combination of options is used.
@@ -38,7 +41,9 @@ Installation
 
 Put it into ~/.bash_completion or /etc/bash_completion.d/.
 
-Tip: To make tab completion more handsome put the following into either /etc/inputrc or ~/.inputrc:
+Tip:
+To make tab completion more handsome put the following into either
+/etc/inputrc or ~/.inputrc:
 
      set show-all-if-ambiguous on
 
@@ -53,7 +58,8 @@ Usage
 =====
 
 Type -[TAB] to start option completion.
-Sets named - (hyphen) or starting with it, are supported, excluded are option names (i.e. -exist).
+Sets named - (hyphen) or starting with it, are supported,
+excluded are option names (i.e. -exist).
 
 Type [TAB] to complete on anything available at the current context.
 
@@ -61,48 +67,74 @@ To complete named port ranges, enter the hypen after the first completed service
 hit [TAB] again to start completion on the second named port (the brackets [] for service names
 containing a - (hyphen) are already surrounding the name in the completion list).
 
-Depending on the environment variable _IPSET_COMPL_OPT_FORMAT, either the long, short or both forms of options are shown for completion.
-By default (empty _IPSET_COMPL_OPT_FORMAT) the long versions of options are displayed (_IPSET_COMPL_OPT_FORMAT=long also does the same).
+Depending on the environment variable _IPSET_COMPL_OPT_FORMAT,
+either the long, short or both forms of options are shown for completion.
+By default (empty _IPSET_COMPL_OPT_FORMAT) the long versions of options
+are displayed (_IPSET_COMPL_OPT_FORMAT=long also does the same).
 Setting it to 'short' will cause completion to show only the short form.
 Setting it to any other value, will result in both version being displayed and completed.
 
 When adding elements to one of the following set types:
 hash:ip,port hash:ip,port,ip hash:ip,port,net hash:net,port
-and completion is attempted on the port specification, the list of possible completions may become quite long.
+and completion is attempted on the port specification,
+the list of possible completions may become quite long.
 Especially if no characters are given to match on.
-This behaviour is because of the many different values such a port specification can possibly have.
+This behaviour is because of the many different
+values such a port specification can possibly have.
 
-The environment variable _IPSET_SSH_CONFIGS controls which files are taken as ssh_config files,
-in order to retrieve the globl and user known_host files, which will be used for hostname completion.
-
-The environment variable HOSTFILE controls which how hostname completion is performed.
+The environment variable HOSTFILE controls how hostname completion is performed.
 Taking the description from the bash man-page:
 
-	Contains the name of a file in the same format as /etc/hosts that should be read when the shell needs to complete a hostname.
-	The list of possible hostname completions may be changed while the shell is running;
-	the next time hostname completion is attempted after the value is changed, bash adds the contents of the new file to the existing list.
-	If HOSTFILE is set, but has no value, or does not name a readable file, bash attempts to read /etc/hosts to obtain the list
-	of possible hostname completions.
+	Contains the name of a file in the same format as /etc/hosts that 
+	should be read when the shell needs to complete a hostname.
+	The list of possible hostname completions may be changed while the shell is running
+	the next time hostname completion is attempted after the value is changed,
+	bash adds the contents of the new file to the existing list.
+	If HOSTFILE is set, but has no value, or does not name a readable file, bash
+	attempts to read /etc/hosts to obtain the list of possible hostname completions.
 	When HOSTFILE is unset, the hostname list is cleared.
+
+
+If the bash-completion package is available hostname completion is extended
+the following way (description from bash-completion source):
+	Helper function for completing _known_hosts.
+	This function performs host completion based on ssh config and known_hosts
+	files, as well as hostnames reported by avahi-browse if
+	COMP_KNOWN_HOSTS_WITH_AVAHI is set to a non-empty value.
+	Also hosts from HOSTFILE (compgen -A hostname) are added, unless
+	COMP_KNOWN_HOSTS_WITH_HOSTFILE is set to an empty value.
+
+
+Also the environment variable _IPSET_SSH_CONFIGS controls which files are taken
+as ssh_config files, in order to retrieve the globl and user known_host files,
+which will be used for hostname completion.
+
+For all *net* type of sets, if hostname completion is attempted,
+networks are retrieved from /etc/networks.
 
 When deleting elements from one of the following set types:
 hash:ip,port hash:ip,port,ip hash:ip,port,net hash:net,port hash:net,iface
 the environment variable _IPSET_COMPL_DEL_MODE is queried to decide how to complete.
 If it is set to 'members' it will list the members of the set.
 If it is set to 'spec' it will follow the format of a port specification ([proto:]port).
-If it is set to any other value both methods are used to generate the list of possible completions (this is the default).
+If it is set to any other value both methods are used to generate
+the list of possible completions (this is the default).
 
 When testing elements from one of the following set types:
 hash:ip,port hash:ip,port,ip hash:ip,port,net hash:net,port hash:net,iface
 the environment variable _IPSET_COMPL_TEST_MODE is queried to decide how to complete.
 If it is set to 'members' it will list the members of the set.
 If it is set to 'spec' it will follow the format of a port specification ([proto:]port).
-If it is set to any other value both methods are used to generate the list of possible completions (this is the default).
+If it is set to any other value both methods are used to generate
+the list of possible completions (this is the default).
 
-When adding elements to a bitmap:ip,mac type of set, the environment variable _IPSET_MACLIST_FILE will be queried
+When adding elements to a bitmap:ip,mac type of set,
+the environment variable _IPSET_MACLIST_FILE will be queried
 for a file containing a list of mac addresses.
 The file should contain one mac address per line.
 Empty lines and comments (also after the address) are supported.
+If the variable is unset mac addresses are fetched from arp cache,
+/etc/ethers and the output of `ip link show`.
 
 
 Compatibility
@@ -113,9 +145,7 @@ Tested with ipset v6.16.1.
 Compatibility for future ipset versions cannot be promised, as new options may appear, 
 which of course are currently unpredictable.
 
-Bash 3.x and upwards are supported.
-
-The bash_completion (v2.0+) package is highly recommended, though not mandatory.
+The bash-completion (v2.0+) package is highly recommended, though not mandatory.
 
 http://bash-completion.alioth.debian.org/
 
@@ -123,6 +153,10 @@ Some things might not be that reliable without it.
 Also the colon (if there) is removed from COMP_WORDBREAKS.
 This alteration is globally, which might affect other completions,
 if they do not take care of it themselves.
+
+If the bash-completion package is available bash v4+ is required.
+Otherwise bash v3.2 and upwards are supported.
+
 
 Availability
 ============
