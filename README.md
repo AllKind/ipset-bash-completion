@@ -97,6 +97,7 @@ Taking the description from the bash man-page:
 
 If the bash-completion package is available hostname completion is extended
 the following way (description from bash-completion source):
+
 	Helper function for completing _known_hosts.
 	This function performs host completion based on ssh config and known_hosts
 	files, as well as hostnames reported by avahi-browse if
