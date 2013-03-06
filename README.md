@@ -63,16 +63,16 @@ excluded are option names (i.e. -exist).
 
 Type [TAB] to complete on anything available at the current context.
 
-To complete named port ranges, enter the hypen after the first completed service (port) name,
-hit [TAB] again to start completion on the second named port (the brackets [] for service names
-containing a - (hyphen) are already surrounding the name in the completion list).
-
 Depending on the environment variable _IPSET_COMPL_OPT_FORMAT,
 either the long, short or both forms of options are shown for completion.
 By default (empty _IPSET_COMPL_OPT_FORMAT) the long versions of options
 are displayed (_IPSET_COMPL_OPT_FORMAT=long also does the same).
 Setting it to 'short' will cause completion to show only the short form.
 Setting it to any other value, will result in both version being displayed and completed.
+
+To complete named port ranges, enter the hypen after the first completed service (port) name,
+hit [TAB] again to start completion on the second named port (the brackets [] for service names
+containing a - (hyphen) are already surrounding the name in the completion list).
 
 When adding elements to one of the following set types:
 hash:ip,port hash:ip,port,ip hash:ip,port,net hash:net,port
