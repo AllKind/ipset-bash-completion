@@ -867,18 +867,29 @@ elif ((cword == action_index+2)) && [[ $str_setname = $prev ]]; then
                         str_prefix="$cur" cur="${cur#*,}"
                         str_prefix="${str_prefix%$cur}"
                         str_regex='^([[:xdigit:]]{2})(:[[:xdigit:]]{2}){5}$'
-                        if [[ $_IPSET_MACLIST_FILE && -r $_IPSET_MACLIST_FILE ]]
-                        then
-                            # if a file with mac addresses is in env var, load em
-                            str_tmp=$(while read -r mac rest; do 
-                                [[ $mac = *([[:blank:]])\#* ]] && continue
-                                mac="${mac//\#*/}" 
-                                [[ $mac =~ $str_regex ]] && printf "%s\n" "$mac" 
-                                done < ${_IPSET_MACLIST_FILE})
-                            COMPREPLY=( $( compgen -P "$str_prefix" \
-                                -W "$str_tmp" -- "$cur" ) )
-                            _ipset_colon_ltrim "$str_prefix$cur"
-                        else
+						x=0 y=0
+						if [[ ${_IPSET_MAC_COMPL_MODE:=both} = both ]]; then
+							x=1 y=1
+						elif [[ $_IPSET_MAC_COMPL_MODE = file ]]; then
+							x=1
+						elif [[ $_IPSET_MAC_COMPL_MODE = system ]]; then
+							y=1
+						fi
+						if ((x)); then
+							if [[ $_IPSET_MACLIST_FILE && -r $_IPSET_MACLIST_FILE ]]
+							then
+								# if a file with mac addresses is in env var, load em
+								str_tmp=$(while read -r mac rest; do 
+									[[ $mac = *([[:blank:]])\#* ]] && continue
+									mac="${mac//\#*/}" 
+									[[ $mac =~ $str_regex ]] && printf "%s\n" "$mac" 
+									done < ${_IPSET_MACLIST_FILE})
+								COMPREPLY=( $( compgen -P "$str_prefix" \
+									-W "$str_tmp" -- "$cur" ) )
+								_ipset_colon_ltrim "$str_prefix$cur"
+							fi
+						fi
+						if ((y)); then
                             # read arp cache, addresses of local interfaces and /etc/ethers
                             str_tmp=$(while read a b addr rest; do
                                 [[ $addr =~ $str_regex ]] && printf "%s\n" "$addr"
@@ -897,7 +908,7 @@ elif ((cword == action_index+2)) && [[ $str_setname = $prev ]]; then
                             COMPREPLY=( $( compgen -P "$str_prefix" -W "$str_tmp" \
                                 -- "$cur" ) )
                             _ipset_colon_ltrim "$str_prefix$cur"
-                        fi
+						fi
                     else
                         if ((got_bashcompl)); then
                             _known_hosts_real -F "$_IPSET_SSH_CONFIGS" -- "$cur"
