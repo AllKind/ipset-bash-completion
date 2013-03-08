@@ -905,7 +905,7 @@ elif ((cword == action_index+2)) && [[ $str_setname = $prev ]]; then
                                     [[ $addr =~ $str_regex ]] && printf "%s\n" "$addr"
                                     done < /etc/ethers)"
                             fi
-                            COMPREPLY=( $( compgen -P "$str_prefix" -W "$str_tmp" \
+                            COMPREPLY+=( $( compgen -P "$str_prefix" -W "$str_tmp" \
                                 -- "$cur" ) )
                             _ipset_colon_ltrim "$str_prefix$cur"
                         fi
