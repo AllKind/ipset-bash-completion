@@ -70,17 +70,13 @@ are displayed (_IPSET_COMPL_OPT_FORMAT=long also does the same).
 Setting it to 'short' will cause completion to show only the short form.
 Setting it to any other value, will result in both version being displayed and completed.
 
+---
+
 To complete named port ranges, enter the hypen after the first completed service (port) name,
 hit [TAB] again to start completion on the second named port (the brackets [] for service names
 containing a - (hyphen) are already surrounding the name in the completion list).
 
-When adding elements to one of the following set types:
-hash:ip,port hash:ip,port,ip hash:ip,port,net hash:net,port
-and completion is attempted on the port specification,
-the list of possible completions may become quite long.
-Especially if no characters are given to match on.
-This behaviour is because of the many different
-values such a port specification can possibly have.
+---
 
 The environment variable HOSTFILE controls how hostname completion is performed.
 Taking the description from the bash man-page:
@@ -113,6 +109,13 @@ which will be used for hostname completion.
 For all *net* type of sets, if hostname completion is attempted,
 networks are retrieved from /etc/networks.
 
+Also a list of ip addresses can be supplied using the environment variable
+_IPSET_IPLIST_FILE. Which should point to a file containing an ip address per line.
+They can be ipv4 and/or ipv6. Detection which type should be included
+is done automatically based on the set header.
+
+---
+
 When deleting elements from one of the following set types:
 hash:ip,port hash:ip,port,ip hash:ip,port,net hash:net,port hash:net,iface
 the environment variable _IPSET_COMPL_DEL_MODE is queried to decide how to complete.
@@ -120,6 +123,8 @@ If it is set to 'members' it will list the members of the set.
 If it is set to 'spec' it will follow the format of a port specification ([proto:]port).
 If it is set to any other value both methods are used to generate
 the list of possible completions (this is the default).
+
+---
 
 When testing elements from one of the following set types:
 hash:ip,port hash:ip,port,ip hash:ip,port,net hash:net,port hash:net,iface
@@ -129,6 +134,8 @@ If it is set to 'spec' it will follow the format of a port specification ([proto
 If it is set to any other value both methods are used to generate
 the list of possible completions (this is the default).
 
+---
+
 When adding elements to a bitmap:ip,mac type of set,
 the environment variable _IPSET_MACLIST_FILE will be queried
 for a file containing a list of mac addresses.
@@ -136,6 +143,16 @@ The file should contain one mac address per line.
 Empty lines and comments (also after the address) are supported.
 If the variable is unset mac addresses are fetched from arp cache,
 /etc/ethers and the output of `ip link show`.
+
+---
+
+When adding elements to one of the following set types:
+hash:ip,port hash:ip,port,ip hash:ip,port,net hash:net,port
+and completion is attempted on the port specification,
+the list of possible completions may become quite long.
+Especially if no characters are given to match on.
+This behaviour is because of the many different
+values such a port specification can possibly have.
 
 
 Compatibility
