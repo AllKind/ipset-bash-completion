@@ -1327,9 +1327,8 @@ else
     elif ((use_file)); then
         COMPREPLY=( $( compgen -W 'list save restore' -- "$cur" ) )
     else
-    COMPREPLY=( $( compgen -W \
-        'create n add del test destroy x list save restore flush rename e swap w help version' \
-        -- "$cur" ) )
+    COMPREPLY=( $( compgen -W 'create n add del test destroy x list save \
+		restore flush rename e swap w help version' -- "$cur" ) )
     fi
 fi
 fi
