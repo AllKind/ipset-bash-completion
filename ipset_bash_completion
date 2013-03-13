@@ -63,13 +63,6 @@ elif [[ $1 == \$\{* ]]; then # variables with a leading `${'
 elif [[ $1 == \$* ]]; then # variables with a leading `$'
     t=${1#?}
     COMPREPLY=( $(compgen -v -P '$' $t ) )
-elif [[ "$1" == *@* ]]; then # hostname
-    t=${1#*@}
-    COMPREPLY=( $( compgen -A hostname $t ) )
-    # prefix as long we have multiple completions
-    if ((${#COMPREPLY[@]} > 1)); then
-        COMPREPLY=( $( compgen -P '@' -A hostname $t ) )
-    fi
 elif [[ $1 == *[*?[]* ]]; then # sh-style glob pattern
     COMPREPLY=( $( compgen -G "$1" ) )
     # ksh-style extended glob pattern - must be complete
@@ -357,7 +350,10 @@ if [[ $cur != *,* ]]; then
     if ((got_bashcompl)); then
         _known_hosts_real -F "$_IPSET_SSH_CONFIGS" -- "$cur"
     else
-        COMPREPLY=( $( compgen -A hostname "$cur" ) )
+        if [[ ${COMP_KNOWN_HOSTS_WITH_HOSTFILE-1} ]]; then
+            COMPREPLY=( $( compgen -A hostname "$cur" ) )
+        fi
+#        COMPREPLY=( $( compgen -A hostname "$cur" ) )
         _ipset_colon_ltrim "$cur"
     fi
     if ((${#COMPREPLY[@]} == 1)); then
@@ -406,7 +402,10 @@ if [[ $cur != *,* ]]; then
     if ((got_bashcompl)); then
         _known_hosts_real -F "$_IPSET_SSH_CONFIGS" -- "$cur"
     else
-        COMPREPLY+=( $( compgen -A hostname "$cur" ) )
+        if [[ ${COMP_KNOWN_HOSTS_WITH_HOSTFILE-1} ]]; then
+            COMPREPLY=( $( compgen -A hostname "$cur" ) )
+        fi
+#        COMPREPLY+=( $( compgen -A hostname "$cur" ) )
         _ipset_colon_ltrim "$cur"
     fi
     if ((${#COMPREPLY[@]} == 1)); then
@@ -497,7 +496,10 @@ elif [[ $cur = *,*,* && $str_type = hash:ip,port,@(ip|net) ]]; then
     if ((got_bashcompl)); then
         _known_hosts_real -p "$str_prefix" -F "$_IPSET_SSH_CONFIGS" -- "$cur"
     else
-        COMPREPLY+=( $( compgen -P "$str_prefix" -A hostname "$cur" ) )
+        if [[ ${COMP_KNOWN_HOSTS_WITH_HOSTFILE-1} ]]; then
+            COMPREPLY+=( $( compgen -P "$str_prefix" -A hostname "$cur" ) )
+        fi
+#        COMPREPLY+=( $( compgen -P "$str_prefix" -A hostname "$cur" ) )
         _ipset_colon_ltrim "$str_prefix$cur"
     fi
     if ((${#COMPREPLY[@]} == 1)); then
@@ -885,7 +887,10 @@ elif ((cword == action_index+2)) && [[ $str_setname = $prev ]]; then
                     if ((got_bashcompl)); then
                         _known_hosts_real -F "$_IPSET_SSH_CONFIGS" -- "$cur"
                     else
-                        COMPREPLY=( $( compgen -A hostname "$cur" ) )
+                        if [[ ${COMP_KNOWN_HOSTS_WITH_HOSTFILE-1} ]]; then
+                            COMPREPLY=( $( compgen -A hostname "$cur" ) )
+                        fi
+#                        COMPREPLY=( $( compgen -A hostname "$cur" ) )
                         _ipset_colon_ltrim "$cur"
                     fi
                     if [[ $str_type = bitmap:ip,mac ]]; then
@@ -959,7 +964,10 @@ elif ((cword == action_index+2)) && [[ $str_setname = $prev ]]; then
                         if ((got_bashcompl)); then
                             _known_hosts_real -F "$_IPSET_SSH_CONFIGS" -- "$cur"
                         else
-                            COMPREPLY=( $( compgen -A hostname "$cur" ) )
+                            if [[ ${COMP_KNOWN_HOSTS_WITH_HOSTFILE-1} ]]; then
+                                COMPREPLY=( $( compgen -A hostname "$cur" ) )
+                            fi
+#                            COMPREPLY=( $( compgen -A hostname "$cur" ) )
                             _ipset_colon_ltrim "$cur"
                         fi
                         compopt -o nospace
