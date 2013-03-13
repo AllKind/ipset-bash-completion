@@ -63,7 +63,7 @@ excluded are option names (i.e. -exist).
 
 Type [TAB] to complete on anything available at the current context.
 
-Depending on the environment variable _IPSET_COMPL_OPT_FORMAT,
+Depending on the environment variable **_IPSET_COMPL_OPT_FORMAT**,
 either the long, short or both forms of options are shown for completion.
 By default (empty _IPSET_COMPL_OPT_FORMAT) the long versions of options
 are displayed (_IPSET_COMPL_OPT_FORMAT=long also does the same).
@@ -78,7 +78,7 @@ containing a - (hyphen) are already surrounding the name in the completion list)
 
 ---
 
-The environment variable HOSTFILE controls how hostname completion is performed.
+The environment variable **HOSTFILE** controls how hostname completion is performed.
 Taking the description from the bash man-page:
 
 	Contains the name of a file in the same format as /etc/hosts that 
@@ -91,7 +91,7 @@ Taking the description from the bash man-page:
 	When HOSTFILE is unset, the hostname list is cleared.
 
 
-If the bash-completion package is available hostname completion is extended
+If the *bash-completion* package is available hostname completion is extended
 the following way (description from bash-completion source):
 
 	Helper function for completing _known_hosts.
@@ -102,7 +102,7 @@ the following way (description from bash-completion source):
 	COMP_KNOWN_HOSTS_WITH_HOSTFILE is set to an empty value.
 
 
-Also the environment variable _IPSET_SSH_CONFIGS controls which files are taken
+Also the environment variable **_IPSET_SSH_CONFIGS** controls which files are taken
 as ssh_config files, in order to retrieve the globl and user known_host files,
 which will be used for hostname completion.
 
@@ -110,15 +110,15 @@ For all *net* type of sets, if hostname completion is attempted,
 networks are retrieved from /etc/networks.
 
 Also a list of ip addresses can be supplied using the environment variable
-_IPSET_IPLIST_FILE. Which should point to a file containing an ip address per line.
+**_IPSET_IPLIST_FILE**. Which should point to a file containing an ip address per line.
 They can be ipv4 and/or ipv6. Detection which type should be included
 is done automatically based on the set header.
 
 ---
 
 When deleting elements from one of the following set types:
-hash:ip,port hash:ip,port,ip hash:ip,port,net hash:net,port hash:net,iface
-the environment variable _IPSET_COMPL_DEL_MODE is queried to decide how to complete.
+**hash:ip,port hash:ip,port,ip hash:ip,port,net hash:net,port hash:net,iface**
+the environment variable **_IPSET_COMPL_DEL_MODE** is queried to decide how to complete.
 If it is set to 'members' it will list the members of the set.
 If it is set to 'spec' it will follow the format of a port specification ([proto:]port).
 If it is set to any other value both methods are used to generate
@@ -127,8 +127,8 @@ the list of possible completions (this is the default).
 ---
 
 When testing elements from one of the following set types:
-hash:ip,port hash:ip,port,ip hash:ip,port,net hash:net,port hash:net,iface
-the environment variable _IPSET_COMPL_TEST_MODE is queried to decide how to complete.
+**hash:ip,port hash:ip,port,ip hash:ip,port,net hash:net,port hash:net,iface**
+the environment variable **_IPSET_COMPL_TEST_MODE** is queried to decide how to complete.
 If it is set to 'members' it will list the members of the set.
 If it is set to 'spec' it will follow the format of a port specification ([proto:]port).
 If it is set to any other value both methods are used to generate
@@ -136,8 +136,8 @@ the list of possible completions (this is the default).
 
 ---
 
-When adding elements to a bitmap:ip,mac type of set,
-the environment variable _IPSET_MACLIST_FILE will be queried
+When adding elements to a **bitmap:ip,mac** type of set,
+the environment variable **_IPSET_MACLIST_FILE** will be queried
 for a file containing a list of mac addresses.
 The file should contain one mac address per line.
 Empty lines and comments (also after the address) are supported.
@@ -147,7 +147,7 @@ If the variable is unset mac addresses are fetched from arp cache,
 ---
 
 When adding elements to one of the following set types:
-hash:ip,port hash:ip,port,ip hash:ip,port,net hash:net,port
+**hash:ip,port hash:ip,port,ip hash:ip,port,net hash:net,port**
 and completion is attempted on the port specification,
 the list of possible completions may become quite long.
 Especially if no characters are given to match on.
