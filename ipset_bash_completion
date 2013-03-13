@@ -115,7 +115,7 @@ while read -r; do
     ((i)) || continue
     if [[ $REPLY = *:* ]]; then
         set -- $REPLY
-        arr_types[${#arr_types[@]}]="$1"
+        arr_types+=("$1")
     fi
 done < <(ipset help)
 for i in ${!arr_types[@]}; do # remove dupe entries
@@ -137,9 +137,9 @@ while read -r; do
     [[ $REPLY = Members:* ]] && in_list=1 && continue
     ((in_list)) || continue
     if ((no)); then
-        arr_members[${#arr_members[@]}]="${REPLY%% *}"
+        arr_members+=("${REPLY%% *}")
     else
-        arr_members[${#arr_members[@]}]="$REPLY"
+        arr_members+=("$REPLY")
     fi
 done < <(ipset list "$1" 2>/dev/null)
 }
@@ -477,7 +477,6 @@ elif [[ $cur =~ $str_regex ]]; then
         _ipset_colon_ltrim "$str_prefix$cur"
         compopt -o nospace
     fi
-#    ((${#COMPREPLY[@]} == 1)) && COMPREPLY=( ${COMPREPLY[*]}, )
 elif [[ $cur = *,*,* && $str_type = hash:ip,port,@(ip|net) ]]; then
     str_prefix="${cur}" cur="${cur##*,}"
     str_prefix="${str_prefix%"$cur"}"
@@ -685,24 +684,24 @@ case "${words[i]}" in
     ;;
     -\!|-exist)
         [[ ${words[i-1]} != @(-f|-file) ]] &&\
-            ignore_errors=1 arr_used_opts[${#arr_used_opts[@]}]=${words[i]}
+            ignore_errors=1 arr_used_opts+=(${words[i]})
     ;;
     -f|-file)
         [[ ${words[i-1]} != @(-f|-file) ]] &&\
             use_file=1 str_filename="${words[i+1]}" \
-            arr_used_opts[${#arr_used_opts[@]}]=${words[i]}
+            arr_used_opts+=(${words[i]})
     ;;
     -n|-name)
         [[ ${words[i-1]} != @(-f|-file) ]] &&\
-           names_only=1 arr_used_opts[${#arr_used_opts[@]}]=${words[i]}
+            names_only=1 arr_used_opts+=(${words[i]})
     ;;
     -t|-terse)
         [[ ${words[i-1]} != @(-f|-file) ]] &&\
-            headers_only=1 arr_used_opts[${#arr_used_opts[@]}]=${words[i]}
+            headers_only=1 arr_used_opts+=(${words[i]})
     ;;
     -o|-output)
         if [[ ${words[i-1]} != @(-f|-file) ]]; then
-            arr_used_opts[${#arr_used_opts[@]}]=${words[i]}
+            arr_used_opts+=(${words[i]})
             if [[ $prev = @(-o|-output) ]]; then
                 save_format=2 # expecting opt-arg
             elif [[ ${words[i+1]} = save ]]; then
@@ -714,10 +713,10 @@ case "${words[i]}" in
     ;;
     -r|-resolve|-s|-sorted)
         [[ ${words[i-1]} != @(-f|-file) ]] &&\
-            res_sort=1 arr_used_opts[${#arr_used_opts[@]}]=${words[i]}
+            res_sort=1 arr_used_opts+=(${words[i]})
     ;;
     -q|-quiet)
-        arr_used_opts[${#arr_used_opts[@]}]=${words[i]}
+        arr_used_opts+=(${words[i]})
     ;;
     -?*)
         if [[ ${words[i]#-} != @(q|quiet) ]]; then
@@ -838,7 +837,7 @@ if ((cword == action_index+1)) && [[ $str_action = $prev ]]; then
                     _ipset_colon_ltrim "$cur"
                 fi
             else
-                COMPREPLY=( $( compgen -W '$(ipset list -n )' -- "$cur" ) )
+                COMPREPLY=( $( compgen -W '$(ipset list -n)' -- "$cur" ) )
                 _ipset_colon_ltrim "$cur"
             fi
         ;;
@@ -866,8 +865,7 @@ elif ((cword == action_index+2)) && [[ $str_setname = $prev ]]; then
             _ipset_colon_ltrim "$cur"
         ;;
         @(swap|w)) # list two sets
-            arr_sets=( $(ipset list -n ) )
-            COMPREPLY=( $( compgen -W '${arr_sets[@]}' -- "$cur" ) )
+            COMPREPLY=( $( compgen -W '$(ipset list -n)' -- "$cur" ) )
             for i in ${!COMPREPLY[@]}; do # remove the dupe setname from the list
                 [[ ${COMPREPLY[i]} = $str_setname ]] && unset COMPREPLY[i] && break
             done
@@ -987,14 +985,14 @@ elif ((cword == action_index+2)) && [[ $str_setname = $prev ]]; then
                         -W '$(_ipset_get_services -o $str_var)' -- "$cur" ) )
                 ;;
                 # show sets if the set to add is of type list:set
-                list:*) arr_tmp=() arr_sets=( $(ipset list -n ) )
+                list:*) arr_tmp=() arr_sets=( $(ipset list -n) )
                     _ipset_get_members --names-only "$str_setname"
                     for x in ${!arr_sets[@]}; do
                         [[ ${arr_sets[x]} = $str_setname ]] && continue
                         for y in ${!arr_members[@]}; do
                             [[ ${arr_sets[x]} = ${arr_members[y]} ]] && continue 2
                         done
-                        arr_tmp[${#arr_tmp[@]}]="${arr_sets[x]}"
+                        arr_tmp+=("${arr_sets[x]}")
                     done
                     COMPREPLY=( $( compgen -W '${arr_tmp[@]}' -- "$cur" ) )
                     _ipset_colon_ltrim "$cur"
@@ -1282,7 +1280,7 @@ elif ((cword >= action_index+4)); then # add options following
                                     if [[ ${arr_members[x]} = ${words[action_index+2]} ]]
                                     then
                                         if [[ ${arr_members[x+1]} ]]; then
-                                            arr_tmp[${#arr_tmp[@]}]=${arr_members[x+1]}
+                                            arr_tmp+=(${arr_members[x+1]})
                                             break
                                         fi
                                     fi
@@ -1293,7 +1291,7 @@ elif ((cword >= action_index+4)); then # add options following
                                     if [[ ${arr_members[x]} = ${words[action_index+2]} ]]
                                     then
                                         if ((x>0)) && [[ ${arr_members[x-1]} ]]; then
-                                            arr_tmp[${#arr_tmp[@]}]=${arr_members[x-1]}
+                                            arr_tmp+=(${arr_members[x-1]})
                                             break
                                         fi
                                     fi
@@ -1328,7 +1326,7 @@ else
         COMPREPLY=( $( compgen -W 'list save restore' -- "$cur" ) )
     else
     COMPREPLY=( $( compgen -W 'create n add del test destroy x list save \
-		restore flush rename e swap w help version' -- "$cur" ) )
+        restore flush rename e swap w help version' -- "$cur" ) )
     fi
 fi
 fi
