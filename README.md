@@ -155,6 +155,14 @@ This behaviour is because of the many different
 values such a port specification can possibly have.
 
 
+---
+
+At any time completion on variable names (starting with '$' or '${'),
+command substitution (starting with '$(') and file name [ext] globbing
+patterns is available.
+
+
+
 Compatibility
 =============
 

@@ -353,7 +353,6 @@ if [[ $cur != *,* ]]; then
         if [[ ${COMP_KNOWN_HOSTS_WITH_HOSTFILE-1} ]]; then
             COMPREPLY=( $( compgen -A hostname "$cur" ) )
         fi
-#        COMPREPLY=( $( compgen -A hostname "$cur" ) )
         _ipset_colon_ltrim "$cur"
     fi
     if ((${#COMPREPLY[@]} == 1)); then
@@ -405,7 +404,6 @@ if [[ $cur != *,* ]]; then
         if [[ ${COMP_KNOWN_HOSTS_WITH_HOSTFILE-1} ]]; then
             COMPREPLY=( $( compgen -A hostname "$cur" ) )
         fi
-#        COMPREPLY+=( $( compgen -A hostname "$cur" ) )
         _ipset_colon_ltrim "$cur"
     fi
     if ((${#COMPREPLY[@]} == 1)); then
@@ -499,7 +497,6 @@ elif [[ $cur = *,*,* && $str_type = hash:ip,port,@(ip|net) ]]; then
         if [[ ${COMP_KNOWN_HOSTS_WITH_HOSTFILE-1} ]]; then
             COMPREPLY+=( $( compgen -P "$str_prefix" -A hostname "$cur" ) )
         fi
-#        COMPREPLY+=( $( compgen -P "$str_prefix" -A hostname "$cur" ) )
         _ipset_colon_ltrim "$str_prefix$cur"
     fi
     if ((${#COMPREPLY[@]} == 1)); then
@@ -890,7 +887,6 @@ elif ((cword == action_index+2)) && [[ $str_setname = $prev ]]; then
                         if [[ ${COMP_KNOWN_HOSTS_WITH_HOSTFILE-1} ]]; then
                             COMPREPLY=( $( compgen -A hostname "$cur" ) )
                         fi
-#                        COMPREPLY=( $( compgen -A hostname "$cur" ) )
                         _ipset_colon_ltrim "$cur"
                     fi
                     if [[ $str_type = bitmap:ip,mac ]]; then
@@ -967,7 +963,6 @@ elif ((cword == action_index+2)) && [[ $str_setname = $prev ]]; then
                             if [[ ${COMP_KNOWN_HOSTS_WITH_HOSTFILE-1} ]]; then
                                 COMPREPLY=( $( compgen -A hostname "$cur" ) )
                             fi
-#                            COMPREPLY=( $( compgen -A hostname "$cur" ) )
                             _ipset_colon_ltrim "$cur"
                         fi
                         compopt -o nospace
