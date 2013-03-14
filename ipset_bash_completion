@@ -820,7 +820,6 @@ then
 fi
 if ((cword == action_index+1)) && [[ $str_action = $prev ]]; then
     # depend on previous option which should be the action
-    # all are terminating conditions
     case "$str_action" in
 #            create|n|version) :
 #            ;;
@@ -839,9 +838,7 @@ if ((cword == action_index+1)) && [[ $str_action = $prev ]]; then
             if [[ $cur = -* ]]; then
                 _ipset_get_options
                 if _ipset_is_set "${cur}*"; then
-                    for i in ${!arr_sets[@]}; do
-                        [[ ${arr_sets[i]} = $cur* ]] && COMPREPLY+=( "${arr_sets[i]}" )
-                    done
+                     COMPREPLY=( $( compgen -W '${arr_sets[@]}' -- "$cur" ) )
                     _ipset_colon_ltrim "$cur"
                 fi
             else
@@ -899,9 +896,7 @@ elif ((cword == action_index+2)) && [[ $str_setname = $prev ]]; then
                         compopt -o nospace
                         ((${#COMPREPLY[@]} == 1)) && COMPREPLY=( ${COMPREPLY[*]}, )
                     elif [[ $str_type = hash:net ]]; then
-                        while read; do
-                            [[ $REPLY = $cur* ]] && COMPREPLY+=( "$REPLY" )
-                        done < <(_ipset_get_networks)
+                        COMPREPLY+=( $( compgen -W '$(_ipset_get_networks)' -- "$cur" ) )
                         if ((${#COMPREPLY[@]} == 1)); then
                             if [[ ${COMPREPLY[*]} != */* ]]; then
                                 compopt -o nospace
@@ -1251,19 +1246,21 @@ elif ((cword >= action_index+4)); then # add options following
             esac
             if [[ ${words[action_index+2]} = bitmap:port && $prev = range ]]; then
                 # complete port ranges
-                str_tmp="$cur" str_suffix="" str_var=""
-                str_glob='[^\[]*-*'
-                if [[ $cur = \[*-*\]-* ]]; then str_var="${cur#\[}"
+                str_prefix="$cur" str_suffix="" str_var="" str_glob='[^\[]*-*'
+                if [[ $cur = \[*-*\]-* ]]; then
+                    str_var="${cur#\[}"
                     str_var="${str_var%%\]*}"
                     cur="${cur#*\]-}"
-                    str_tmp=${str_tmp%"$cur"}
-                elif [[ $cur = $str_glob ]]; then str_var="${cur%%-*}"
+                    str_prefix=${str_prefix%"$cur"}
+                elif [[ $cur = $str_glob ]]; then
+                    str_var="${cur%%-*}"
                     cur="${cur#*-}"
-                    str_tmp=${str_tmp%"$cur"}
-                else str_tmp="" str_suffix=-
+                    str_prefix=${str_prefix%"$cur"}
+                else
+                    str_prefix="" str_suffix=-
                     compopt -o nospace
                 fi
-                COMPREPLY=( $( compgen -P "$str_tmp" -S "$str_suffix" \
+                COMPREPLY=( $( compgen -P "$str_prefix" -S "$str_suffix" \
                     -W '$(_ipset_get_services -o $str_var)' -- "$cur" ) )
             fi
         ;;
