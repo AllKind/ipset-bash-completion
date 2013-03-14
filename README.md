@@ -27,11 +27,11 @@ Providing some kind of interactive help.
 - Show and complete the set types when using the create and help command.
 - Show and complete set elements (members) when using the del command.
 - Show and complete services (also named port ranges), protocols,
-icmp[6] types and interface names when adding elements.
+icmp[6] types and interface names when adding, deleting or testing elements.
 - Show and complete hostnames, when adding, deleting or testing elements.
 - Show and complete mac addresses.
 - Complete on filenames if the current option requires it.
-- Complete variable names, command subtitution and globbing patterns.
+- Complete variable names, command substitution and globbing patterns.
 - Do not complete if an invalid combination of options is used.
 - Do not complete if an invalid value of an option argument is detected.
 
