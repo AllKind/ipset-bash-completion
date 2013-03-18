@@ -1,17 +1,6 @@
 ipset-bash-completion
 =====================
 
-<<<<<<< HEAD
-
-Description
-===========
-
-Programmable completion code for the bash shell to support the ipset program (netfilter.org).
-
-
-Programmable completion allows the user, while working in an interactive shell, to retrieve and auto-complete commands,
-their options, filenames, etc.
-=======
 Description
 ===========
 
@@ -21,7 +10,6 @@ to support the ipset program (netfilter.org).
 
 Programmable completion allows the user, while working in an interactive shell,
 to retrieve and auto-complete commands, their options, filenames, etc.
->>>>>>> dev
 Pressing [TAB] will complete on the current word, if only one match is found.
 If multiple completions are possible, they will be listed by hitting [TAB] again.
 
@@ -29,26 +17,15 @@ If multiple completions are possible, they will be listed by hitting [TAB] again
 Features
 ========
 
-<<<<<<< HEAD
-This completion specification follows the logic of ipset and will only show commands and options, 
-when they are available for the current context (combination of commands and/or options).
-=======
 This completion specification follows the logic of ipset and
  will show commands and options only when they are available for the current context
 (combination of commands and/or options).
->>>>>>> dev
 Providing some kind of interactive help.
 
 - Show and complete commands and options.
 - Show and complete set names.
 - Show and complete the set types when using the create and help command.
 - Show and complete set elements (members) when using the del command.
-<<<<<<< HEAD
-- Show and complete hostnames, when adding, deleting or testing elements (using @ as prefix).
-- Complete on filenames if the current option requires it.
-- Complete variable names, command subtitution and globbing patterns
-- Don't complete if an invalid combination of options is used.
-=======
 - Show and complete services (also named port ranges), protocols,
 icmp[6] types and interface names when adding, deleting or testing elements.
 - Show and complete hostnames, when adding, deleting or testing elements.
@@ -57,7 +34,6 @@ icmp[6] types and interface names when adding, deleting or testing elements.
 - Complete variable names, command substitution and globbing patterns.
 - Do not complete if an invalid combination of options is used.
 - Do not complete if an invalid value of an option argument is detected.
->>>>>>> dev
 
 
 Installation
@@ -65,8 +41,6 @@ Installation
 
 Put it into ~/.bash_completion or /etc/bash_completion.d/.
 
-<<<<<<< HEAD
-=======
 Tip:
 To make tab completion more handsome put the following into either
 /etc/inputrc or ~/.inputrc:
@@ -188,19 +162,11 @@ command substitution (starting with '$(') and file name [ext] globbing
 patterns is available.
 
 
->>>>>>> dev
 
 Compatibility
 =============
 
 Tested with ipset v6.16.1.
-<<<<<<< HEAD
-Should support versions from 6.0 upwards.
-Compatibility for future ipset versions cannot be promised, as new options may appear, 
-which of course are currently unpredictable.
-
-For bash, it should work from at least 3.x upwards.
-=======
 
 Compatibility for future ipset versions cannot be promised, as new options may appear, 
 which of course are currently unpredictable.
@@ -219,7 +185,6 @@ Otherwise bash v3.2 and upwards are supported.
 
 The iproute program (ip) is needed to display information about the local system.
 
->>>>>>> dev
 
 
 Availability
@@ -227,8 +192,4 @@ Availability
 
 https://github.com/AllKind/ipset-bash-completion
 
-<<<<<<< HEAD
-https://sourceforge.net/projects/ipset-bashcompl/
-=======
 http://sourceforge.net/projects/ipset-bashcompl/
->>>>>>> dev
