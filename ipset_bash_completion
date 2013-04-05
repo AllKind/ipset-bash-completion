@@ -274,6 +274,7 @@ done
 _ipset_get_networks() {
 local foo str_net rest
 [[ -r /etc/networks ]] || return 0
+[[ ${_IPSET_COMP_NETWORKS-1} ]] || return 0
 while read -r foo str_net rest; do
     [[ $foo = @(""|*([[:blank:]])#*) ]] && continue
     [[ $str_net = *([[:blank:]])#* ]] && continue

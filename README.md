@@ -107,6 +107,7 @@ as ssh_config files, in order to retrieve the globl and user known_host files,
 which will be used for hostname completion.
 
 For all *net* type of sets, if hostname completion is attempted,
+if the environment variable **_IPSET_COMP_NETWORKS** is set to a non-empty value,
 networks are retrieved from /etc/networks.
 
 Also a list of ip addresses can be supplied using the environment variable
