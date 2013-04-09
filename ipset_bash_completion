@@ -100,9 +100,16 @@ while read n d; do
 done < <(ipset -t list "$1" 2>/dev/null)
 }
 
-_ipset_set_has_timout() {
+_ipset_set_has_timeout() {
 while read -r; do
     [[ $REPLY = Header:*timeout* ]] && return 0
+done < <(ipset -t list "$1")
+return 1
+}
+
+_ipset_set_has_counters() {
+while read -r; do
+    [[ $REPLY = Header:*counters* ]] && return 0
 done < <(ipset -t list "$1")
 return 1
 }
@@ -142,13 +149,6 @@ while read -r; do
         arr_members+=("$REPLY")
     fi
 done < <(ipset list "$1" 2>/dev/null)
-}
-
-_ipset_set_has_timeout() {
-while read -r; do
-    [[ $REPLY = Header:*timeout* ]] && return 0
-done < <(ipset -t list "$1")
-return 1
 }
 
 _ipset_get_set_family() {
@@ -543,7 +543,7 @@ local cur prev cword words ips_version
 local str_action str_setname str_type str_filename
 local str_glob str_regex str_prefix str_suffix
 local str_tmp="" str_var=""
-local str_timeout="timeout" str_order="before after" str_counters=""
+local str_timeout="timeout" str_order="before after" str_counters="" str_bp_counters=""
 local -i i=x=y=0
 local -i got_bashcompl=got_action=action_index=order_index=set_has_timeout=0
 local -i ignore_errors=use_file=names_only=headers_only=save_format=res_sort=0
@@ -631,8 +631,10 @@ read -a ips_version <<< ${ips_version//./ }
 
 # ipset -gt v6.17 has counters flag
 if ((ips_version[0] == 6 && ips_version[1] >= 17)) || ((ips_version[0] > 6))
+#if ((ips_version[0] == 6 && ips_version[1] >= 16)) || ((ips_version[0] > 6))
 then
     str_counters="counters"
+    str_bp_counters="bytes packets"
 fi
 
 # expecting _get_comp_words_by_ref() to exist from bash_completion
@@ -740,7 +742,7 @@ case "${words[i]}" in
             order_index=$i str_order=""
         fi
     ;;
-    timeout|range|maxelem|family|hashsize|size|netmask|nomatch|counters)
+    timeout|range|maxelem|family|hashsize|size|netmask|nomatch|counters|bytes|packets)
         if ((got_action && i > action_index+2)); then
             str_tmp="$COMP_LINE"
             [[ $str_setname = ${words[i]} ]] && str_tmp="${str_tmp/${words[i]}/}"
@@ -1092,25 +1094,28 @@ elif ((cword == action_index+3)) && [[ $cur != -* ]]; then
     case "$str_action" in
         add)
             str_type=$(_ipset_get_set_type "$str_setname")
-            if _ipset_set_has_timout "$str_setname"; then
+            if _ipset_set_has_timeout "$str_setname"; then
                 str_timeout=timeout
             else
                 str_timeout=""
             fi
+            if ! _ipset_set_has_counters "$str_setname"; then
+                str_bp_counters=""
+            fi
             case "$str_type" in
                 hash:*net*)
                     COMPREPLY=( $( compgen -W \
-                        '$(_ipset_dedupe_cmd_opts $str_timeout $str_counters nomatch)' \
+                        '$(_ipset_dedupe_cmd_opts $str_timeout $str_bp_counters nomatch)' \
                         -- "$cur" ) )
                 ;;
                 hash:*!(net)*|bitmap:*)
                     COMPREPLY=( $( compgen -W \
-                        '$(_ipset_dedupe_cmd_opts $str_timeout $str_counters)' \
+                        '$(_ipset_dedupe_cmd_opts $str_timeout $str_bp_counters)' \
                         -- "$cur" ) )
                 ;;
                 list:*)
                     COMPREPLY=( $( compgen -W \
-                        '$(_ipset_dedupe_cmd_opts $str_order $str_timeout $str_counters)' \
+                        '$(_ipset_dedupe_cmd_opts $str_order $str_timeout $str_bp_counters)' \
                         -- "$cur" ) )
                 ;;
             esac
@@ -1143,6 +1148,8 @@ elif ((cword == action_index+3)) && [[ $cur != -* ]]; then
             str_type=$(_ipset_get_set_type "$str_setname")
             if [[ $str_type = list:* ]]; then
                 COMPREPLY=( $( compgen -W '$str_order' -- "$cur" ) )
+            elif [[ $str_action = test && $str_type = hash:*net* ]]; then
+                COMPREPLY=( $( compgen -W 'nomatch' -- "$cur" ) )
             fi
         ;;
     esac
@@ -1150,28 +1157,31 @@ elif ((cword == action_index+3)) && [[ $cur = -* ]]; then
     _ipset_get_options
 elif ((cword >= action_index+4)); then # add options following
     if [[ $cur = -* && \
-        $prev != @(timeout|hashsize|size|family|maxelem|range|netmask|before|after|counters) ]]
+        $prev != @(timeout|hashsize|size|family|maxelem|range|netmask|before|after|counters|bytes|packets) ]]
     then _ipset_get_options
         return 0
     fi
     case "$str_action" in
         add)
             str_type=$(_ipset_get_set_type "$str_setname")
-            if _ipset_set_has_timout "$str_setname"; then
+            if _ipset_set_has_timeout "$str_setname"; then
                 str_timeout=timeout
             else
                 str_timeout=""
             fi
+            if ! _ipset_set_has_counters "$str_setname"; then
+                str_bp_counters=""
+            fi
             # validate option argument values
             for ((x=$action_index+3; x < ${#words[@]}; x++)); do
-                [[ ${words[x]} = timeout && \
+                [[ ${words[x]} = @(timeout|bytes|packets) && \
                     ${words[x+1]} != @(+([[:digit:]])|0x+([[:xdigit:]])) ]] && return 0
             done
             case "$str_type" in
                 hash:*net*)
-                    if [[ $prev != timeout ]]; then
+                    if [[ $prev != @(timeout|bytes|packets) ]]; then
                         COMPREPLY=( $( compgen -W \
-                            '$(_ipset_dedupe_cmd_opts $str_timeout $str_counters nomatch)' \
+                            '$(_ipset_dedupe_cmd_opts $str_timeout $str_bp_counters nomatch)' \
                             -- "$cur" ) )
                     fi
                 ;;
@@ -1180,9 +1190,9 @@ elif ((cword >= action_index+4)); then # add options following
                         _ipset_get_members --names-only "$str_setname"
                         COMPREPLY=( $( compgen -W '${arr_members[@]}' -- "$cur" ) )
                         _ipset_colon_ltrim "$cur"
-                    elif [[ $prev != timeout ]]; then
+                    elif [[ $prev != @(timeout|bytes|packets) ]]; then
                         COMPREPLY=( $( compgen -W \
-                            '$(_ipset_dedupe_cmd_opts $str_order $str_timeout $str_counters)' \
+                            '$(_ipset_dedupe_cmd_opts $str_order $str_timeout $str_bp_counters)' \
                             -- "$cur" ) )
                     fi
                 ;;
