@@ -95,6 +95,7 @@ return 1
 }
 
 _ipset_get_set_type() {
+local n d
 while read n d; do
     [[ $n = Type: ]] && printf '%s\n' $d && break
 done < <(ipset -t list "$1" 2>/dev/null)
@@ -336,6 +337,30 @@ while read -r; do
 done < <(PATH=${PATH}:/sbin command ip -o link show)
 }
 
+_ipset_complete_hostnames() {
+local -i idx
+local str_x="" str_y=""
+(($#)) && local str_x="-p $*" str_y="-P $*"
+if ((got_bashcompl)); then
+    _known_hosts_real -F "$_IPSET_SSH_CONFIGS" $str_x -- "$cur"
+else
+    if [[ ${COMP_KNOWN_HOSTS_WITH_HOSTFILE-1} ]]; then
+        COMPREPLY+=( $( compgen -A hostname $str_y -- "$cur" ) )
+    fi
+    _ipset_colon_ltrim "$*$cur"
+fi
+if ((${#COMPREPLY[@]} == 1)); then
+    if [[ ${COMPREPLY[*]} = *[[:alpha:]]*-*[[:alpha:]]* ]]; then
+        if [[ ${COMPREPLY[0]} = *,* ]]; then
+            str_x="[${COMPREPLY[*]##*,}]"
+           COMPREPLY=( "${COMPREPLY[*]%"${COMPREPLY[*]##*,}"}$str_x" )
+        else
+           COMPREPLY=( \[${COMPREPLY[*]}\] )
+        fi
+    fi
+fi
+}
+
 _ipset_complete_iface_spec() {
 if [[ $cur != *,* ]]; then
     str_prefix=""
@@ -352,14 +377,7 @@ if [[ $cur != *,* ]]; then
         [[ $REPLY = $cur* ]] && COMPREPLY+=( "$REPLY" )
     done < <(_ipset_get_networks)
     # hostnames
-    if ((got_bashcompl)); then
-        _known_hosts_real -F "$_IPSET_SSH_CONFIGS" -- "$cur"
-    else
-        if [[ ${COMP_KNOWN_HOSTS_WITH_HOSTFILE-1} ]]; then
-            COMPREPLY+=( $( compgen -A hostname "$cur" ) )
-        fi
-        _ipset_colon_ltrim "$cur"
-    fi
+    _ipset_complete_hostnames
     if [[ $str_prefix ]]; then # range spec
         COMPREPLY=( $( compgen -P "$str_prefix" -W '${COMPREPLY[@]}' -- "$cur" ) )
     fi
@@ -406,14 +424,7 @@ if [[ $cur != *,* ]]; then
         COMPREPLY+=( $( compgen -W '$(_ipset_get_networks)' -- "$cur" ) )
         _ipset_colon_ltrim "$cur"
     fi
-    if ((got_bashcompl)); then
-        _known_hosts_real -F "$_IPSET_SSH_CONFIGS" -- "$cur"
-    else
-        if [[ ${COMP_KNOWN_HOSTS_WITH_HOSTFILE-1} ]]; then
-            COMPREPLY+=( $( compgen -A hostname "$cur" ) )
-        fi
-        _ipset_colon_ltrim "$cur"
-    fi
+    _ipset_complete_hostnames
     if [[ $str_prefix ]]; then # range spec
         COMPREPLY=( $( compgen -P "$str_prefix" -W '${COMPREPLY[@]}' -- "$cur" ) )
     fi
@@ -499,14 +510,7 @@ elif [[ $cur = *,*,* && $str_type = hash:ip,port,@(ip|net) ]]; then
         done < <(_ipset_get_networks)
         _ipset_colon_ltrim "$str_prefix$cur"
     fi
-    if ((got_bashcompl)); then
-        _known_hosts_real -p "$str_prefix" -F "$_IPSET_SSH_CONFIGS" -- "$cur"
-    else
-        if [[ ${COMP_KNOWN_HOSTS_WITH_HOSTFILE-1} ]]; then
-            COMPREPLY+=( $( compgen -P "$str_prefix" -A hostname "$cur" ) )
-        fi
-        _ipset_colon_ltrim "$str_prefix$cur"
-    fi
+    _ipset_complete_hostnames "$str_prefix"
     if ((${#COMPREPLY[@]} == 1)); then
         if [[ $str_type = hash:ip,port,net && ${COMPREPLY[*]} != */* ]]; then
             compopt -o nospace
@@ -630,7 +634,7 @@ read -a ips_version <<< ${ips_version//./ }
 ((ips_version[0] < 6)) && return 1
 
 # ipset -gt v6.17 has counters flag
-if ((ips_version[0] == 6 && ips_version[1] >= 17)) || ((ips_version[0] > 6))
+if ((ips_version[0] == 6 && ips_version[1] > 17)) || ((ips_version[0] > 6))
 #if ((ips_version[0] == 6 && ips_version[1] >= 16)) || ((ips_version[0] > 6))
 then
     str_counters="counters"
@@ -887,14 +891,7 @@ elif ((cword == action_index+2)) && [[ $str_setname = $prev ]]; then
                     COMPREPLY=( $( compgen -W \
                         '$(_ipset_get_iplist "$(_ipset_get_set_family "$str_setname")")' \
                         -- "$cur" ) )
-                    if ((got_bashcompl)); then
-                        _known_hosts_real -F "$_IPSET_SSH_CONFIGS" -- "$cur"
-                    else
-                        if [[ ${COMP_KNOWN_HOSTS_WITH_HOSTFILE-1} ]]; then
-                            COMPREPLY=( $( compgen -A hostname "$cur" ) )
-                        fi
-                        _ipset_colon_ltrim "$cur"
-                    fi
+                    _ipset_complete_hostnames
                     if [[ $str_type = bitmap:ip,mac ]]; then
                         compopt -o nospace
                         ((${#COMPREPLY[@]} == 1)) && COMPREPLY=( ${COMPREPLY[*]}, )
@@ -961,16 +958,11 @@ elif ((cword == action_index+2)) && [[ $str_setname = $prev ]]; then
                         COMPREPLY=( $( compgen -W \
                             '$(_ipset_get_iplist "$(_ipset_get_set_family "$str_setname")")' \
                             -- "$cur" ) )
-                        if ((got_bashcompl)); then
-                            _known_hosts_real -F "$_IPSET_SSH_CONFIGS" -- "$cur"
-                        else
-                            if [[ ${COMP_KNOWN_HOSTS_WITH_HOSTFILE-1} ]]; then
-                                COMPREPLY=( $( compgen -A hostname "$cur" ) )
-                            fi
-                            _ipset_colon_ltrim "$cur"
-                        fi
+                        _ipset_complete_hostnames
                         compopt -o nospace
-                        ((${#COMPREPLY[@]} == 1)) && COMPREPLY=( ${COMPREPLY[*]}, )
+                        if ((${#COMPREPLY[@]} == 1)); then
+                            COMPREPLY=( ${COMPREPLY[*]}, )
+                        fi
                     fi
                 ;;
                 bitmap:port)
