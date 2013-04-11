@@ -28,6 +28,8 @@
 # -----------------------------------------------------------------
 # Requirements:
 #
+# bash v4 or greater.
+#
 # The bash completion package version 2.0 or greater is recommended.
 # http://bash-completion.alioth.debian.org/
 #
@@ -622,6 +624,9 @@ neighbour-advertisement
 neigbour-advertisement
 redirect
 )
+
+# at least bash 4 is required
+((${BASH_VERSINFO[0]} < 4)) && return 0
 
 COMPREPLY=()
 
