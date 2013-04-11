@@ -103,17 +103,10 @@ while read n d; do
 done < <(ipset -t list "$1" 2>/dev/null)
 }
 
-_ipset_set_has_timeout() {
+_ipset_set_has_option() {
 while read -r; do
-    [[ $REPLY = Header:*timeout* ]] && return 0
-done < <(ipset -t list "$1")
-return 1
-}
-
-_ipset_set_has_counters() {
-while read -r; do
-    [[ $REPLY = Header:*counters* ]] && return 0
-done < <(ipset -t list "$1")
+    [[ $REPLY = Header:*$1* ]] && return 0
+done < <(ipset -t list "$2")
 return 1
 }
 
@@ -1091,12 +1084,12 @@ elif ((cword == action_index+3)) && [[ $cur != -* ]]; then
     case "$str_action" in
         add)
             str_type=$(_ipset_get_set_type "$str_setname")
-            if _ipset_set_has_timeout "$str_setname"; then
+            if _ipset_set_has_option timeout "$str_setname"; then
                 str_timeout=timeout
             else
                 str_timeout=""
             fi
-            if ! _ipset_set_has_counters "$str_setname"; then
+            if ! _ipset_set_has_option counters "$str_setname"; then
                 str_bp_counters=""
             fi
             case "$str_type" in
@@ -1161,12 +1154,12 @@ elif ((cword >= action_index+4)); then # add options following
     case "$str_action" in
         add)
             str_type=$(_ipset_get_set_type "$str_setname")
-            if _ipset_set_has_timeout "$str_setname"; then
+            if _ipset_set_has_option timeout "$str_setname"; then
                 str_timeout=timeout
             else
                 str_timeout=""
             fi
-            if ! _ipset_set_has_counters "$str_setname"; then
+            if ! _ipset_set_has_option counters "$str_setname"; then
                 str_bp_counters=""
             fi
             # validate option argument values
