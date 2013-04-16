@@ -169,6 +169,8 @@ Compatibility
 
 Tested with ipset v6.16.1.
 
+bash v4+ is required.
+
 Compatibility for future ipset versions cannot be promised, as new options may appear, 
 which of course are currently unpredictable.
 
@@ -180,9 +182,6 @@ Some things might not be that reliable or feature rich without it.
 Also the colon (if there) is removed from COMP_WORDBREAKS.
 This alteration is globally, which might affect other completions,
 if they do not take care of it themselves.
-
-If the bash-completion package is available bash v4+ is required.
-Otherwise bash v3.2 and upwards are supported.
 
 The iproute program (ip) is needed to display information about the local system.
 
