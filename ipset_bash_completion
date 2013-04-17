@@ -396,17 +396,32 @@ fi
 
 _ipset_complete_hostport_spec() {
 # complete on host,proto:port[,host] spec
-local str_proto str_glob2
+local str_proto str_glob2 str_lprefix lcur
 if [[ $str_type = hash:ip,port,@(ip|net) ]]; then str_suffix=','
 else str_suffix=''
 fi
 str_regex='^[^,]+,([^,]+)?$'
 if [[ $cur != *,* ]]; then
-    str_prefix=""
+    str_prefix="" str_suffix=""
     compopt -o nospace
-    if [[ $str_type = hash:net,port && $str_action = @(add|del) && $cur = *-* ]]
-    then # range spec
-        str_prefix="${cur%-*}-" cur="${cur#*-}"
+    if [[ $str_type = hash:net,port && $str_action = @(add|del) ]]; then
+        # range spec
+        if [[ $cur = @(""|+([[:word:]])) ]]; then # empty or [:word:]
+            str_suffix="-"
+        elif [[ $cur = [[]*-*[]] ]]; then # host with hyphen
+            str_suffix="-"
+        elif [[ $cur = [[]*([!]]) ]]; then # incomplete host with dash
+            str_suffix="-"
+        elif [[ $cur = *-[[]+([!]]) ]]; then # incomplete range - host with dash
+            str_prefix="${cur%\-[*}-"
+            cur="${cur#"$str_prefix"}"
+        elif [[ $cur = \[*\]-* ]]; then # first part of hostname range
+            str_prefix="${cur%\]-*}]-" cur="${cur##*\]-}"
+        elif [[ $cur != *-* ]]; then # no hypen
+            str_suffix="-"
+        else # ip-range
+            str_prefix="${cur%-*}-" cur="${cur##*-}"
+        fi
     fi
     # ip-list from file
     COMPREPLY=( $( compgen -W \
@@ -421,11 +436,15 @@ if [[ $cur != *,* ]]; then
         COMPREPLY=( $( compgen -P "$str_prefix" -W '${COMPREPLY[@]}' -- "$cur" ) )
     fi
     if ((${#COMPREPLY[@]} == 1)); then
-        COMPREPLY=( ${COMPREPLY[*]}, )
+        if [[ $str_suffix = - ]]; then
+            COMPREPLY=( $( compgen -W '${COMPREPLY[*]}, ${COMPREPLY[*]}-' -- "$cur" ) )
+        else
+            COMPREPLY=( ${COMPREPLY[*]}, )
+        fi
     fi
 elif [[ $cur =~ $str_regex ]]; then
     (( $(IFS=,; set -- $str_type; printf "%d\n" $#) == 3 )) && compopt -o nospace
-    str_glob='[^\[]*-' # otherwise messes up my vim syntax highlightning
+    str_glob='[^[]*-' # otherwise messes up my vim syntax highlightning
     str_regex='.*,(icmp|icmp6|tcp|sctp|udp|udplite):.*' # for compat put regex in var
     if [[ $cur != *icmp* && \
         $cur = *,@(?(tcp:|sctp:|udp:|udplite:)@(+([[:word:]])-|\[*-*\]-)|\[*-*\]-)* ]]
@@ -482,18 +501,33 @@ elif [[ $cur =~ $str_regex ]]; then
         compopt -o nospace
     fi
 elif [[ $cur = *,*,* && $str_type = hash:ip,port,@(ip|net) ]]; then
-    str_prefix="${cur}" cur="${cur##*,}"
-    str_prefix="${str_prefix%"$cur"}"
+    str_lprefix="${cur}" lcur="${cur##*,}"
+    str_lprefix="${str_lprefix%"$lcur"}"
+    cur="$lcur"
     # ip-list from file
     COMPREPLY=( $( compgen -W \
         '$(_ipset_get_iplist "$(_ipset_get_set_family "$str_setname")")' \
-        -- "$cur" ) )
+        -- "$lcur" ) )
     if [[ $str_type = hash:ip,port,net ]]; then
+        # range spec
+        if [[ $cur = @(""|+([[:word:]])) ]]; then # empty or [:word:]
+            str_suffix="-"
+        elif [[ $cur = [[]*-*[]] ]]; then # host with hyphen
+            str_suffix="-"
+        elif [[ $cur = [[]+([!]]) ]]; then # incomplete host with dash
+            str_suffix="-"
+        elif [[ $cur = *-[[]+([!]]) ]]; then # incomplete range - host with dash
+            str_prefix="${cur%\-[*}-"
+            cur="${cur#"$str_prefix"}"
+        elif [[ $cur = \[*\]-* ]]; then # first part of hostname range
+            str_prefix="${cur%\]-*}]-" cur="${cur##*\]-}"
+        elif [[ $cur != *-* ]]; then # no hypen
+            str_suffix="-"
+        else # ip-range
+            str_prefix="${cur%-*}-" cur="${cur##*-}"
+        fi
         # networks
         COMPREPLY+=( $( compgen -W '$(_ipset_get_networks)' -- "$cur" ) )
-#        while read; do
-#            [[ $REPLY = $cur* ]] && COMPREPLY+=( "$str_prefix$REPLY" )
-#        done < <(_ipset_get_networks)
 #        _ipset_colon_ltrim "$str_prefix$cur"
         _ipset_colon_ltrim "$cur"
     fi
@@ -502,8 +536,16 @@ elif [[ $cur = *,*,* && $str_type = hash:ip,port,@(ip|net) ]]; then
         COMPREPLY=( $( compgen -P "$str_prefix" \
             -W '${COMPREPLY[@]}' -- "$cur" ) )
     fi
+    if [[ $str_lprefix ]]; then
+        COMPREPLY=( $( compgen -P "$str_lprefix" \
+            -W '${COMPREPLY[@]}' -- "$lcur" ) )
+    fi
     if ((${#COMPREPLY[@]} == 1)); then
-        if [[ $str_type = hash:ip,port,net && ${COMPREPLY[*]} != */* ]]; then
+        if [[ $str_type = hash:ip,port,net && \
+            ${COMPREPLY[*]##*,} != *[[:digit:]]-[[:digit:]]* && \
+            ${COMPREPLY[*]##*,} != \[*\]-\[*\] && \
+            ${COMPREPLY[*]##*,} != */* ]]
+        then
             compopt -o nospace
             COMPREPLY=( ${COMPREPLY[*]}/ )
         fi
@@ -886,10 +928,10 @@ elif ((cword == action_index+2)) && [[ $str_setname = $prev ]]; then
                         '$(_ipset_get_iplist "$(_ipset_get_set_family "$str_setname")")' \
                         -- "$cur" ) )
                     _ipset_complete_hostnames "$cur"
-                    if [[ $str_type = bitmap:ip,mac ]]; then
-                        compopt -o nospace
-                        ((${#COMPREPLY[@]} == 1)) && COMPREPLY=( ${COMPREPLY[*]}, )
-                    elif [[ $str_type = hash:net ]]; then
+#                    if [[ $str_type = bitmap:ip,mac ]]; then
+#                        compopt -o nospace
+#                        ((${#COMPREPLY[@]} == 1)) && COMPREPLY=( ${COMPREPLY[*]}, )
+                    if [[ $str_type = hash:net ]]; then
                         COMPREPLY+=( $( compgen -W '$(_ipset_get_networks)' -- "$cur" ) )
                         if ((${#COMPREPLY[@]} == 1)); then
                             if [[ ${COMPREPLY[*]} != */* ]]; then
@@ -1260,23 +1302,19 @@ elif ((cword >= action_index+4)); then # add options following
                 COMPREPLY=( $( compgen -P "$str_prefix" -S "$str_suffix" \
                     -W '$(_ipset_get_services -o $str_var)' -- "$cur" ) )
             elif [[ ${words[action_index+2]} = bitmap:* && $prev = range ]]; then
-                str_prefix="" str_suffix="" str_tmp="$cur"
+                str_prefix="" str_tmp="$cur"
                 if [[ $cur = @(""|+([[:word:]])) ]]; then # empty or [:word:]
-                    str_suffix="-"
                     compopt -o nospace
                 elif [[ $cur = [\[]*-*[\]] ]]; then # host with hyphen
-                    str_suffix="-"
                     compopt -o nospace
-                elif [[ $cur = [[]+([!\]]) ]]; then # incomplete host with dash
-                    str_suffix="-"
+                elif [[ $cur = [[]*([!]]) ]]; then # incomplete host with dash
                     compopt -o nospace
-                elif [[ $cur = *-[[]+([!\]]) ]]; then # incomplete range - host with dash
+                elif [[ $cur = *-[[]+([!]]) ]]; then # incomplete range - host with dash
                     str_prefix="${cur%\-[*}-"
                     str_tmp="${cur#"$str_prefix"}"
                 elif [[ $cur = \[*\]-* ]]; then # first part of hostname range
                     str_prefix="${cur%\]-*}]-" str_tmp="${cur##*\]-}"
                 elif [[ $cur != *-* ]]; then # no hypen
-                    str_suffix="-"
                     compopt -o nospace
                 else # ip-range
                     str_prefix="${cur%-*}-" str_tmp="${cur##*-}"
@@ -1285,12 +1323,12 @@ elif ((cword >= action_index+4)); then # add options following
                 COMPREPLY=( $( compgen -W '$(_ipset_get_iplist v4)' -- "$str_tmp" ) )
 #                [[ $cur = @(""|\[|?(\[)+([[:word:]-:])*) ]] && _ipset_complete_hostnames "$str_tmp"
                 _ipset_complete_hostnames "$str_tmp"
-                if [[ $str_prefix ]]; then # range spec
-                    COMPREPLY=( $( compgen -P "$str_prefix" \
-                        -W '${COMPREPLY[@]}' -- "$str_tmp" ) )
-                fi
-                if ((${#COMPREPLY[@]} == 1)) && [[ $str_suffix ]]; then
-                    COMPREPLY[0]="${COMPREPLY[0]}$str_suffix"
+                COMPREPLY=( $( compgen -P "$str_prefix" -W '${COMPREPLY[@]}' -- "$str_tmp" ) )
+                if ((${#COMPREPLY[@]} == 1)); then
+                    if [[ -z $str_prefix  && ${COMPREPLY[*]} != */* ]]; then
+                        compopt -o nospace
+                        COMPREPLY=( $( compgen -W '${COMPREPLY[*]}/ ${COMPREPLY[*]}-' -- "$cur" ) )
+                    fi
                 fi
             fi
         ;;
