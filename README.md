@@ -118,7 +118,7 @@ is done automatically based on the set header.
 ---
 
 When deleting elements from one of the following set types:
-**hash:ip,port hash:ip,port,ip hash:ip,port,net hash:net,port hash:net,iface**
+**hash:ip hash:net hash:ip,port hash:ip,port,ip hash:ip,port,net hash:net,port hash:net,iface**
 the environment variable **_IPSET_COMPL_DEL_MODE** is queried to decide how to complete.
 If it is set to 'members' it will list the members of the set.
 If it is set to 'spec' it will follow the format of a port specification ([proto:]port).
@@ -128,7 +128,7 @@ the list of possible completions (this is the default).
 ---
 
 When testing elements from one of the following set types:
-**hash:ip,port hash:ip,port,ip hash:ip,port,net hash:net,port hash:net,iface**
+**hash:ip hash:net hash:ip,port hash:ip,port,ip hash:ip,port,net hash:net,port hash:net,iface**
 the environment variable **_IPSET_COMPL_TEST_MODE** is queried to decide how to complete.
 If it is set to 'members' it will list the members of the set.
 If it is set to 'spec' it will follow the format of a port specification ([proto:]port).
