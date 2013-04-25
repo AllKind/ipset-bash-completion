@@ -151,7 +151,7 @@ _ipset_get_set_family() {
 while read -r; do
     [[ $REPLY = Header:*"family inet6"* ]] && printf "v6\n" && return
     [[ $REPLY = Header:*"family inet "* ]] && printf "v4\n" && return
-    [[ $REPLY = Header:*"range "*:*:* ]] && printf "v6\n" && return
+#    [[ $REPLY = Header:*"range "*:*:* ]] && printf "v6\n" && return
     [[ $REPLY = Header:*"range "*.*.*.* ]] && printf "v4\n" && return
 done < <(ipset -t list "$1")
 }
@@ -159,9 +159,15 @@ done < <(ipset -t list "$1")
 _ipset_dedupe_cmd_opts() {
 local str_opt
 local -i idx
-for str_opt in "${@}"; do
+for str_opt; do
     for idx in ${!arr_dupe_cmd_opts[@]}; do
-        [[ $str_opt = ${arr_dupe_cmd_opts[idx]} ]] && continue 2
+        if [[ $str_opt = ${arr_dupe_cmd_opts[idx]} ]]; then
+            if [[ $_DEBUG_NF_COMPLETION ]]; then
+                printf "removing dupe option str_opt: %s\n" \
+                    "${arr_dupe_cmd_opts[idx]}"
+            fi
+            continue 2
+        fi
     done
     printf "%s\n" "$str_opt"
 done
@@ -391,7 +397,6 @@ elif [[ $lcur = $str_glob ]]; then
     lcur="${lcur#*-}"
     str_lprefix=${str_lprefix%"$lcur"}
 else
-#    str_lprefix="" str_lsuffix=-
     str_lprefix=""
     compopt -o nospace
 fi
@@ -424,13 +429,15 @@ _ipset_complete_iface_spec() {
 if [[ $cur != *,* ]]; then
     str_prefix="" str_glob='+([![])-*'
     compopt -o nospace
-    if [[ $cur = \[*-+([[:alpha:]])*\]-* ]]; then # hostrange spec
-        str_prefix="${cur%\]-*}]-" cur="${cur#*]-}"
-    elif [[ $cur = *-[[]+([!\]]) ]]; then # incomplete range - host with dash
-        str_prefix="${cur%\-[*}-"
-        cur="${cur#"$str_prefix"}"
-    elif [[ $cur = $str_glob ]]; then # range spec
-        str_prefix="${cur%-*}-" cur="${cur#*-}"
+    if [[ x$str_action != xtest ]]; then
+        if [[ $cur = \[*-*\]-* ]]; then # hostrange spec
+            str_prefix="${cur%\]-*}]-" cur="${cur#*\]-}"
+        elif [[ $cur = *-[[]+([!]]) ]]; then # incomplete range - host with dash
+            str_prefix="${cur%-\[*}-"
+            cur="${cur#"$str_prefix"}"
+        elif [[ $cur = $str_glob ]]; then # range spec
+            str_prefix="${cur%-*}-" cur="${cur#*-}"
+        fi
     fi
     # ip-list from file
     COMPREPLY=( $( compgen -W \
@@ -441,14 +448,18 @@ if [[ $cur != *,* ]]; then
     # hostnames
     _ipset_complete_hostnames "$cur"
     if [[ $str_prefix ]]; then # range spec
-        COMPREPLY=( $( compgen -P "$str_prefix" -W '${COMPREPLY[@]}' -- "$cur" ) )
+        COMPREPLY=( $( compgen -P "$str_prefix" -W '${COMPREPLY[@]//*\/*/}' -- "$cur" ) )
+    else
+        COMPREPLY=( $( compgen -W '${COMPREPLY[@]}' -- "$cur" ) )
     fi
     if ((${#COMPREPLY[@]} == 1)); then
-        str_glob='@(*/*|\[*\]-*|[![]*-*)'
-        if [[ ${COMPREPLY[*]} = $str_glob ]]; then
+        if [[ $str_prefix || x$str_action = xtest ]]; then
            COMPREPLY=( ${COMPREPLY[*]}, )
-        fi
+       else
+           COMPREPLY=( ${COMPREPLY[*]}, ${COMPREPLY[*]}- )
+       fi
     fi
+    _ipset_colon_ltrim "$str_prefix$cur"
 elif [[ $cur = *,* ]]; then
     str_prefix="${cur}" cur="${cur#*,}" str_var=""
     str_prefix="${str_prefix%"$cur"}"
@@ -1178,6 +1189,7 @@ elif ((cword == action_index+2)) && [[ $str_setname = $prev ]]; then
                 str_prefix=""
                 if [[ ${_IPSET_COMPL_DEL_MODE:=both} = members ]]; then
                     _ipset_complete_elements "$cur" --no-range
+                    _ipset_colon_ltrim "$cur"
                 elif [[ ${_IPSET_COMPL_DEL_MODE} = spec ]]; then
                     _ipset_complete_host_spec "$cur" --v4 --no-range
                 else
