@@ -448,7 +448,8 @@ if [[ $cur != *,* ]]; then
     # hostnames
     _ipset_complete_hostnames "$cur"
     if [[ $str_prefix ]]; then # range spec
-        COMPREPLY=( $( compgen -P "$str_prefix" -W '${COMPREPLY[@]//*\/*/}' -- "$cur" ) )
+        COMPREPLY=( $( compgen -P "$str_prefix" -W '${COMPREPLY[@]//*\/*/}' \
+            -- "$cur" ) )
     else
         COMPREPLY=( $( compgen -W '${COMPREPLY[@]}' -- "$cur" ) )
     fi
@@ -590,7 +591,7 @@ if [[ $cur != *,* ]]; then
     fi
     _ipset_colon_ltrim "$str_prefix$cur"
 elif [[ $cur =~ $str_regex ]]; then
-    (( $(IFS=,; set -- $str_type; printf "%d\n" $#) == 3 )) && compopt -o nospace
+    compopt -o nospace
     str_glob='[^[]*-' # otherwise messes up my vim syntax highlightning
     str_regex='.*,(icmp|icmp6|tcp|sctp|udp|udplite):.*' # for compat put regex in var
     if [[ $cur != *icmp* && \
@@ -617,6 +618,11 @@ elif [[ $cur =~ $str_regex ]]; then
             str_prefix="${str_prefix%:*}:"
         fi
         _ipset_colon_ltrim "${str_prefix}"
+        if ((${#COMPREPLY[@]} == 1)); then
+            if [[ $str_prefix && $str_type != hash:ip,port,@(ip|net) ]]; then
+                compopt +o nospace
+            fi
+        fi
     elif [[ $cur =~ $str_regex ]]; then
         # icmp[6] and services with (tcp|udp|sctp|udplite): prefix
         str_var=${BASH_REMATCH[1]}
@@ -633,7 +639,6 @@ elif [[ $cur =~ $str_regex ]]; then
         elif [[ $str_var = @(tcp|udp|sctp|udplite) ]]; then
             COMPREPLY+=( $( compgen -P "$str_prefix" -W \
                 '$(_ipset_get_services -p $str_var)' -- "$cur" ) )
-            compopt -o nospace
         fi
         _ipset_colon_ltrim "$str_prefix"
     elif [[ $cur = *,* ]]; then # first attempt :/ long list
