@@ -385,7 +385,7 @@ fi
 _ipset_complete_portrange() {
 # complete port ranges
 local lcur="$1"
-local str_lprefix="$lcur" str_lsuffix=""
+local str_lprefix="$lcur"
 str_var="" str_glob='[^[]*-*'
 if [[ $lcur = \[*-*\]-* ]]; then
     str_var="${lcur#\[}"
@@ -400,8 +400,8 @@ else
     str_lprefix=""
     compopt -o nospace
 fi
-compgen -P "$str_lprefix" -S "$str_lsuffix" \
-    -W '$(_ipset_get_services -o $str_var)' -- "$lcur"
+COMPREPLY=( $(compgen -P "$str_lprefix" \
+    -W '$(_ipset_get_services -o $str_var)' -- "$lcur" ) )
 }
 
 _ipset_complete_hostnames() {
@@ -1127,22 +1127,7 @@ elif ((cword == action_index+2)) && [[ $str_setname = $prev ]]; then
                 ;;
                 bitmap:port)
                     # complete port [range]
-                    str_prefix="$cur" str_var="" str_glob='[^[]*-*'
-                    if [[ $cur = \[*-*\]-* ]]; then
-                           str_var="${cur#\[}"
-                        str_var="${str_var%%\]*}"
-                        cur="${cur#*\]-}"
-                        str_prefix=${str_prefix%"$cur"}
-                    elif [[ $cur = $str_glob ]]; then
-                           str_var="${cur%%-*}"
-                        cur="${cur#*-}"
-                        str_prefix=${str_prefix%"$cur"}
-                    else
-                           str_prefix=""
-                        compopt -o nospace
-                    fi
-                    COMPREPLY=( $( compgen -P "$str_prefix" \
-                        -W '$(_ipset_get_services -o $str_var)' -- "$cur" ) )
+                    _ipset_complete_portrange "$cur"
                 ;;
                 # show sets if the set to add is of type list:set
                 list:*) arr_tmp=() arr_sets=( $(ipset list -n) )
@@ -1176,9 +1161,9 @@ elif ((cword == action_index+2)) && [[ $str_setname = $prev ]]; then
                 if [[ ${_IPSET_COMPL_DEL_MODE:=both} = members ]]; then
                     _ipset_complete_elements "$cur"
                 elif [[ ${_IPSET_COMPL_DEL_MODE} = spec ]]; then
-                    COMPREPLY=( $( compgen -W '$(_ipset_complete_portrange "$cur")' ) )
+                    _ipset_complete_portrange "$cur"
                 else
-                    COMPREPLY=( $( compgen -W '$(_ipset_complete_portrange "$cur")' ) )
+                    _ipset_complete_portrange "$cur"
                     _ipset_get_members --names-only "$str_setname"
                     str_glob='@([![]*-*|\[?*\]-*)'
                     if [[ $cur = $str_glob ]]; then
@@ -1468,7 +1453,7 @@ elif ((cword >= action_index+4)); then # add options following
             esac
             if [[ ${words[action_index+2]} = bitmap:port && $prev = range ]]; then
                 # complete port ranges
-                COMPREPLY=( $( compgen -W '$(_ipset_complete_portrange "$cur")' ) )
+                _ipset_complete_portrange "$cur"
             elif [[ ${words[action_index+2]} = bitmap:* && $prev = range ]]; then
                 str_prefix="" str_tmp="$cur"
                 if [[ $cur = @(""|+([[:word:]])) ]]; then # empty or [:word:]
