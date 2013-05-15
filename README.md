@@ -90,6 +90,9 @@ Taking the description from the bash man-page:
 	attempts to read /etc/hosts to obtain the list of possible hostname completions.
 	When HOSTFILE is unset, the hostname list is cleared.
 
+As it is impossible to distinguish between IPv4 and IPv6 hostnames without resolving
+them, it is considered best practice to seperate IPv4 hosts from IPv6 hosts
+in different files.
 
 If the *bash-completion* package is available hostname completion is extended
 the following way (description from bash-completion source):
@@ -117,8 +120,7 @@ is done automatically based on the set header.
 
 ---
 
-When deleting elements from one of the following set types:
-**hash:ip hash:net hash:ip,port hash:ip,port,ip hash:ip,port,net hash:net,port hash:net,iface**
+When deleting elements from any but list:set set types:
 the environment variable **_IPSET_COMPL_DEL_MODE** is queried to decide how to complete.
 If it is set to 'members' it will list the members of the set.
 If it is set to 'spec' it will follow the format of a port specification ([proto:]port).
@@ -127,8 +129,7 @@ the list of possible completions (this is the default).
 
 ---
 
-When testing elements from one of the following set types:
-**hash:ip hash:net hash:ip,port hash:ip,port,ip hash:ip,port,net hash:net,port hash:net,iface**
+When testing elements from any but list:set set types:
 the environment variable **_IPSET_COMPL_TEST_MODE** is queried to decide how to complete.
 If it is set to 'members' it will list the members of the set.
 If it is set to 'spec' it will follow the format of a port specification ([proto:]port).
