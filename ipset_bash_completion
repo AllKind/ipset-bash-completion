@@ -390,25 +390,26 @@ local lcur="$1"
 local str_lprefix="$lcur" str_p=""
 str_var=0 str_glob='[^[]*-*'
 if [[ $lcur = *:* ]]; then # look for `proto:'
+    ((got_bp_proto)) || return 0 # supported since ipset v6.20
     # only tcp/udp is valid as PROTO spec
     [[ ${lcur%%:*} = @(tcp|udp) ]] || return 0
     str_p=${lcur%%:*}
     lcur="${lcur#$str_p:}"
 fi
-if [[ $lcur = \[*-*\]-* ]]; then
+if [[ $lcur = \[*-*\]-* ]]; then # spec with bracket
     str_var="${lcur#\[}"
     str_var="${str_var%%\]*}"
     lcur="${lcur#*\]-}"
     str_lprefix=${str_lprefix%"$lcur"}
-elif [[ $lcur = $str_glob ]]; then
+elif [[ $lcur = $str_glob ]]; then # spec without bracket
     str_var="${lcur%%-*}"
     lcur="${lcur#*-}"
     str_lprefix=${str_lprefix%"$lcur"}
-else
+else # no prefix
     str_lprefix=""
     compopt -o nospace
 fi
-if [[ $str_p ]]; then
+if [[ $str_p ]]; then # we have a proto spec
     COMPREPLY=( $(compgen -P "$str_p:$str_lprefix" \
         -W '$(_ipset_get_services -o $str_var -p $str_p)' -- "$lcur" ) )
     _ipset_colon_ltrim "$str_p:$str_lprefix$lcur"
@@ -417,8 +418,13 @@ else
         COMPREPLY=( $(compgen -P "$str_lprefix" \
             -W '$(_ipset_get_services -o $str_var)' -- "$lcur" ) )
     else
-        COMPREPLY=( $(compgen \
-            -W 'tcp: udp: $(_ipset_get_services)' -- "$lcur" ) )
+        if ((got_bp_proto)); then # supported since ipset v6.20
+            COMPREPLY=( $(compgen \
+                -W 'tcp: udp: $(_ipset_get_services)' -- "$lcur" ) )
+        else # only tcp services prior to ipset v6.20
+            COMPREPLY=( $(compgen \
+                -W '$(_ipset_get_services -p tcp)' -- "$lcur" ) )
+        fi
     fi
 fi
 }
@@ -739,6 +745,7 @@ local str_timeout="timeout" str_order="before after"
 local str_counters="" str_bp_counters="" str_comment=""
 local -i i=x=y=0
 local -i got_bashcompl=got_action=action_index=order_index=set_has_timeout=0
+local -i got_bp_proto=0
 local -i ignore_errors=use_file=names_only=headers_only=save_format=res_sort=0
 local arr_sets=() arr_types=() arr_members=() arr_unknown_opts=()
 local arr_dupe_cmd_opts=() arr_used_opts=() arr_tmp=()
@@ -831,6 +838,7 @@ if ((ips_version[0] > 6)); then
     str_counters="counters"
     str_bp_counters="bytes packets"
     str_comment="comment"
+    got_bp_proto=1
 else
     if ((ips_version[0] == 6 && ips_version[1] >= 19)); then
         str_counters="counters"
@@ -838,6 +846,7 @@ else
     fi
     if ((ips_version[0] == 6 && ips_version[1] >= 20)); then
         str_comment="comment"
+        got_bp_proto=1
     fi
 fi
 
