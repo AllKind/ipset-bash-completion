@@ -168,7 +168,7 @@ patterns is available.
 Compatibility
 =============
 
-Tested with ipset v6.16.1.
+Tested with ipset v6.20.1.
 
 bash v4+ is required.
 
