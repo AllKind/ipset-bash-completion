@@ -302,7 +302,7 @@ while (($#)); do
     if [[ $1 = -p ]]; then
         str_p="${2:-all}"
         shift
-    elif [[ $1 = -o && $2 ]]; then
+    elif [[ $1 = -o && ${2:-"-no"} != -* ]]; then
         # second part of range will have offset = first_part_of_range+1
         str_offset="${2}"
         shift
@@ -387,8 +387,14 @@ fi
 _ipset_complete_portrange() {
 # complete port ranges
 local lcur="$1"
-local str_lprefix="$lcur"
-str_var="" str_glob='[^[]*-*'
+local str_lprefix="$lcur" str_p=""
+str_var=0 str_glob='[^[]*-*'
+if [[ $lcur = *:* ]]; then # look for `proto:'
+    # only tcp/udp is valid as PROTO spec
+    [[ ${lcur%%:*} = @(tcp|udp) ]] || return 0
+    str_p=${lcur%%:*}
+    lcur="${lcur#$str_p:}"
+fi
 if [[ $lcur = \[*-*\]-* ]]; then
     str_var="${lcur#\[}"
     str_var="${str_var%%\]*}"
@@ -402,8 +408,19 @@ else
     str_lprefix=""
     compopt -o nospace
 fi
-COMPREPLY=( $(compgen -P "$str_lprefix" \
-    -W '$(_ipset_get_services -o $str_var)' -- "$lcur" ) )
+if [[ $str_p ]]; then
+    COMPREPLY=( $(compgen -P "$str_p:$str_lprefix" \
+        -W '$(_ipset_get_services -o $str_var -p $str_p)' -- "$lcur" ) )
+    _ipset_colon_ltrim "$str_p:$str_lprefix$lcur"
+else
+    if [[ $str_lprefix ]]; then
+        COMPREPLY=( $(compgen -P "$str_lprefix" \
+            -W '$(_ipset_get_services -o $str_var)' -- "$lcur" ) )
+    else
+        COMPREPLY=( $(compgen \
+            -W 'tcp: udp: $(_ipset_get_services)' -- "$lcur" ) )
+    fi
+fi
 }
 
 _ipset_complete_hostnames() {
