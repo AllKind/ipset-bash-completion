@@ -556,8 +556,8 @@ str_regex='^[^,]+,([^,]+)?$'
 if [[ $lcur != *,* ]]; then
     str_lprefix="" str_suffix=""
     compopt -o nospace
-    if [[ $str_type = hash:@(ip,port|net,port|ip,port,ip|ip,port,net) && \
-        $str_action = @(add|del) ]]
+    if [[ $str_type = hash:@(ip,port|net,port|ip,port,ip|ip,port,net|net,port,net) && \
+        $str_action = @(add|del|test) ]]
     then
         # range spec
         if [[ $lcur = @(""|+([[:word:]])) ]]; then # empty or [:word:]
@@ -581,7 +581,7 @@ if [[ $lcur != *,* ]]; then
     COMPREPLY+=( $( compgen -W \
         '$(_ipset_get_iplist "$(_ipset_get_set_family "$str_setname")")' \
         -- "$lcur" ) )
-    if [[ $str_type = hash:net,port ]]; then
+    if [[ $str_type = hash:net,port?(,net) ]]; then
         COMPREPLY+=( $( compgen -W '$(_ipset_get_networks)' -- "$lcur" ) )
         _ipset_colon_ltrim "$lcur"
     fi
@@ -660,7 +660,7 @@ elif [[ $lcur =~ $str_regex ]]; then
         _ipset_colon_ltrim "$str_lprefix$lcur"
         compopt -o nospace
     fi
-elif [[ $lcur = *,*,* && $str_type = hash:ip,port,@(ip|net) ]]; then
+elif [[ $lcur = *,*,* && $str_type = hash:@(ip,port,@(ip|net)|net,port,net) ]]; then
     str_lprefix2="${lcur}" lcur2="${lcur##*,}"
     str_lprefix2="${str_lprefix2%"$lcur2"}"
     lcur="$lcur2"
@@ -668,7 +668,7 @@ elif [[ $lcur = *,*,* && $str_type = hash:ip,port,@(ip|net) ]]; then
     COMPREPLY+=( $( compgen -W \
         '$(_ipset_get_iplist "$(_ipset_get_set_family "$str_setname")")' \
         -- "$lcur2" ) )
-    if [[ $str_type = hash:ip,port,net && x$str_action != xtest ]]; then
+    if [[ $str_type = hash:@(ip|net),port,net && x$str_action != xtest ]]; then
         # range spec
         if [[ $lcur = @(""|+([[:word:]])) ]]; then # empty or [:word:]
             str_suffix="-"
@@ -1088,7 +1088,7 @@ elif ((cword == action_index+2)) && [[ $str_setname = $prev ]]; then
                 hash:net,iface)
                     _ipset_complete_iface_spec "$cur"
                 ;;
-                hash:@(ip,port|ip,port,ip|ip,port,net|net,port))
+                hash:@(ip,port|ip,port,ip|ip,port,net|net,port|net,port,net))
                     _ipset_complete_hostport_spec "$cur"
                 ;;
                 hash:net,net)
@@ -1330,7 +1330,7 @@ elif ((cword == action_index+2)) && [[ $str_setname = $prev ]]; then
                     fi
                     _ipset_colon_ltrim "$cur"
                 fi
-            elif [[ $str_type = hash:@(ip,port|ip,port,ip|ip,port,net|net,port) ]]
+            elif [[ $str_type = hash:@(ip,port|ip,port,ip|ip,port,net|net,port|net,port,net) ]]
             then
                 if [[ ${_IPSET_COMPL_TEST_MODE:=both} = members ]]; then
                     _ipset_complete_elements "$cur" --no-range
