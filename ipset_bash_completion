@@ -811,17 +811,17 @@ read -a ips_version <<< ${ips_version//./ }
 if ((ips_version[0] > 6)); then
     str_counters="counters"
     str_bp_counters="bytes packets"
-	str_comment="comment"
+    str_comment="comment"
 else
-	if ((ips_version[0] == 6 && ips_version[1] >= 19)); then
-		str_counters="counters"
-		str_bp_counters="bytes packets"
-	fi
-	if ((ips_version[0] == 6 && ips_version[1] >= 20)); then
-		str_comment="comment"
-	fi
+    if ((ips_version[0] == 6 && ips_version[1] >= 19)); then
+        str_counters="counters"
+        str_bp_counters="bytes packets"
+    fi
+    if ((ips_version[0] == 6 && ips_version[1] >= 20)); then
+        str_comment="comment"
+    fi
 fi
-	str_comment="comment"  # FOR TESTING!!!
+    str_comment="comment"  # FOR TESTING!!!
 
 # expecting _get_comp_words_by_ref() to exist from bash_completion
 if declare -f _get_comp_words_by_ref &>/dev/null; then got_bashcompl=1
@@ -1406,16 +1406,18 @@ elif ((cword >= action_index+4)); then # add options following
             done
             case "$str_type" in
                 hash:*net*)
-                    if [[ $prev != @(timeout|bytes|packets) ]]; then
+                    if [[ $prev != @(timeout|bytes|packets|comment) ]]; then
                         COMPREPLY=( $( compgen -W \
                             '$(_ipset_dedupe_cmd_opts $str_timeout $str_bp_counters $str_comment nomatch)' \
                             -- "$cur" ) )
                     fi
                 ;;
                 hash:*!(net)*|bitmap:*)
-                    COMPREPLY=( $( compgen -W \
-                        '$(_ipset_dedupe_cmd_opts $str_timeout $str_bp_counters $str_comment)' \
-                        -- "$cur" ) )
+                    if [[ $prev != @(timeout|bytes|packets|comment) ]]; then
+                        COMPREPLY=( $( compgen -W \
+                            '$(_ipset_dedupe_cmd_opts $str_timeout $str_bp_counters $str_comment)' \
+                            -- "$cur" ) )
+                    fi
                 ;;
                 list:*)
                     if [[ $prev = @(before|after) ]] && ((cword-1 == order_index)); then
