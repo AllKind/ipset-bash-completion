@@ -1383,6 +1383,39 @@ elif ((cword == action_index+2)) && [[ $str_setname = $prev ]]; then
                     _ipset_complete_iface_spec "$cur"
                     _ipset_colon_ltrim "$cur"
                 fi
+            elif [[ $str_type = bitmap:port ]]; then
+                str_prefix="" str_tmp="$cur"
+                if [[ $cur = @(tcp|udp):* ]]; then
+                    ((got_bp_proto)) || return 0 # supported since ipset v6.20
+                    str_prefix="${cur%:*}"
+                    str_tmp="${str_tmp#${str_prefix}:}"
+                fi
+                if [[ ${_IPSET_COMPL_TEST_MODE:=both} = members ]]; then
+                    _ipset_complete_elements "$cur" --no-range
+                    _ipset_colon_ltrim "$cur"
+                elif [[ ${_IPSET_COMPL_TEST_MODE} = spec ]]; then
+                    if ((got_bp_proto)); then # supported since ipset v6.20
+                        COMPREPLY=( $(compgen -W \
+							'tcp: udp: $(_ipset_get_services -p "$str_prefix")' -- "$str_tmp" ) )
+                        [[ ${COMPREPLY[*]} = @(tcp|udp): ]] && compopt -o nospace
+                        _ipset_colon_ltrim "$cur"
+                    else # only tcp services prior to ipset v6.20
+                        COMPREPLY=( $(compgen \
+                            -W '$(_ipset_get_services -p tcp)' -- "$cur" ) )
+                    fi
+                else
+                    if ((got_bp_proto)); then # supported since ipset v6.20
+                        COMPREPLY=( $(compgen -W \
+							'tcp: udp: $(_ipset_get_services -p "$str_prefix")' -- "$str_tmp" ) )
+                        [[ ${COMPREPLY[*]} = @(tcp|udp): ]] && compopt -o nospace
+                        _ipset_colon_ltrim "$cur"
+                    else # only tcp services prior to ipset v6.20
+                        COMPREPLY=( $(compgen \
+                            -W '$(_ipset_get_services -p tcp)' -- "$cur" ) )
+                    fi
+                    _ipset_complete_elements "$cur" --no-range
+                    _ipset_colon_ltrim "$cur"
+                fi
             else
                 _ipset_complete_elements "$cur" --no-range
                 _ipset_colon_ltrim "$cur"
