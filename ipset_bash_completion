@@ -1239,12 +1239,16 @@ elif ((cword == action_index+2)) && [[ $str_setname = $prev ]]; then
                 else
                     _ipset_complete_portrange "$cur"
                     _ipset_get_members --names-only "$str_setname"
-                    str_glob='@([![]*-*|\[?*\]-*)'
+                    str_glob='?(tcp:|udp:)@([![]*-*|\[?*\]-*)'
                     if [[ $cur = $str_glob ]]; then
-                        for i in ${!arr_members[@]}; do
-                            ((${arr_members[i]} <= ${cur%%-*})) && \
-                                unset arr_members[i] || break
-                        done
+                        str_var="${cur#?(tcp:|udp:)}"
+                        str_var="${str_var%%-*}"
+                        if [[ $str_var = +([[:digit:]]) ]]; then
+                            for i in ${!arr_members[@]}; do
+                                ((${arr_members[i]} <= $str_var)) && \
+                                    unset arr_members[i] || break
+                            done
+                        fi
                         str_prefix="${cur%-*}-" cur="${cur##*-}"
                     fi
                     COMPREPLY+=( $( compgen -P "$str_prefix" -W '${arr_members[@]}' -- "$cur" ) )
