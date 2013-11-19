@@ -194,3 +194,12 @@ Availability
 https://github.com/AllKind/ipset-bash-completion
 
 http://sourceforge.net/projects/ipset-bashcompl/
+
+
+
+Bugs
+============
+
+Please report bugs!
+
+
