@@ -1117,24 +1117,26 @@ elif ((cword == action_index+2)) && [[ $str_setname = $prev ]]; then
                 hash:net,net)
                     if [[ $cur = *,* ]]; then
                         str_prefix="$cur" cur="${cur#*,}"
-                        str_prefix="${str_prefix%$cur}"
+                        str_prefix="${str_prefix%,*},"
                         _ipset_complete_host_spec "$cur"
                         compopt -o nospace
                         COMPREPLY=( $( compgen -P "$str_prefix" -W '${COMPREPLY[@]}' -- "$cur" ) )
-#                        if ((${#COMPREPLY[@]} == 1 )); then
-#                            [[ ${COMPREPLY[*]#*,} = *@(-|/)* ]] && compopt +o nospace
-#                        fi
+                        if ((${#COMPREPLY[@]} == 1 )); then
+                            str_glob='@(*/*|\[*\]-*|+([![])-*)'
+                            [[ ${COMPREPLY[0]#*,} = $str_glob ]] && compopt +o nospace
+                        fi
                         _ipset_colon_ltrim "$str_prefix$cur"
                     else
                         _ipset_complete_host_spec "$cur"
                         compopt -o nospace
-#                        if ((${#COMPREPLY[@]} == 1 )); then
-#                            if [[ ${COMPREPLY[*]} = *@(-|/)* ]]; then
-#                                COMPREPLY=( ${COMPREPLY[*]}, )
-#                            else
-#                                COMPREPLY=( ${COMPREPLY[*]}- ${COMPREPLY[*]}, )
-#                            fi
-#                        fi
+                        if ((${#COMPREPLY[@]} == 1 )); then
+                            str_glob='@(*/*|\[*\]-\[*\]|+([![])-+([![])|\[*\]-+([![])|+([![])-\[*\])'
+                            if [[ ${COMPREPLY[0]} = $str_glob ]]; then
+                                COMPREPLY=( ${COMPREPLY[*]}, )
+                            else
+                                COMPREPLY=( ${COMPREPLY[*]}- ${COMPREPLY[*]}, )
+                            fi
+                        fi
                         _ipset_colon_ltrim "$cur"
                     fi
                 ;;
@@ -1253,24 +1255,26 @@ elif ((cword == action_index+2)) && [[ $str_setname = $prev ]]; then
             elif [[ $str_type = hash:net,net ]]; then
                 if [[ $cur = *,* ]]; then
                     str_prefix="$cur" cur="${cur#*,}"
-                    str_prefix="${str_prefix%$cur}"
+                    str_prefix="${str_prefix%,*},"
                     _ipset_complete_host_spec "$cur"
                     compopt -o nospace
                     COMPREPLY=( $( compgen -P "$str_prefix" -W '${COMPREPLY[@]}' -- "$cur" ) )
                     if ((${#COMPREPLY[@]} == 1 )); then
-                        [[ ${COMPREPLY[*]#*,} = *@(-|/)* ]] && compopt +o nospace
+                        str_glob='@(*/*|\[*\]-*|+([![])-*)'
+                        [[ ${COMPREPLY[0]#*,} = $str_glob ]] && compopt +o nospace
                     fi
                     _ipset_colon_ltrim "$str_prefix$cur"
                 else
                     _ipset_complete_host_spec "$cur"
                     compopt -o nospace
-#                    if ((${#COMPREPLY[@]} == 1 )); then
-#                        if [[ ${COMPREPLY[*]} = +(!(\[))@(-|/)* ]]; then
-#                            COMPREPLY=( ${COMPREPLY[*]}, )
-#                        else
-#                            COMPREPLY=( ${COMPREPLY[*]}- ${COMPREPLY[*]}, )
-#                        fi
-#                    fi
+                    if ((${#COMPREPLY[@]} == 1 )); then
+                        str_glob='@(*/*|\[*\]-\[*\]|+([![])-+([![])|\[*\]-+([![])|+([![])-\[*\])'
+                        if [[ ${COMPREPLY[0]} = $str_glob ]]; then
+                            COMPREPLY=( ${COMPREPLY[*]}, )
+                        else
+                            COMPREPLY=( ${COMPREPLY[*]}- ${COMPREPLY[*]}, )
+                        fi
+                    fi
                     _ipset_colon_ltrim "$cur"
                 fi
             elif [[ $str_type = bitmap:ip,mac ]]; then
