@@ -153,7 +153,6 @@ _ipset_get_set_family() {
 while read -r; do
     [[ $REPLY = Header:*"family inet6"* ]] && printf "v6\n" && return
     [[ $REPLY = Header:*"family inet "* ]] && printf "v4\n" && return
-#    [[ $REPLY = Header:*"range "*:*:* ]] && printf "v6\n" && return
     [[ $REPLY = Header:*"range "*.*.*.* ]] && printf "v4\n" && return
 done < <(ipset -t list "$1")
 }
@@ -434,7 +433,6 @@ local -i idx got_bracket=0
 local lcur="${1//@(\[|\])}"
 [[ $lcur = $1 ]] || got_bracket=1
 if ((got_bashcompl)); then
-#    _known_hosts_real -F "$_IPSET_SSH_CONFIGS" -- "$lcur"
     _ipset_known_hosts -F "$_IPSET_SSH_CONFIGS" -- "$lcur"
 else
     if [[ ${COMP_KNOWN_HOSTS_WITH_HOSTFILE-1} ]]; then
@@ -636,7 +634,6 @@ elif [[ $lcur =~ $str_regex ]]; then
             str_var="${lcur#*,}" lcur="${lcur##*-}"
             str_var="${str_var#${BASH_REMATCH[1]}:}"
             str_lprefix=${str_lprefix%"$lcur"} str_var="${str_var%%-*}"
-#        elif [[ $lcur != $str_glob ]]; then
         else
             str_var="${lcur#*,}" lcur="${lcur##*-}"
             str_var="${str_var#${BASH_REMATCH[1]}:}"
@@ -676,7 +673,7 @@ elif [[ $lcur =~ $str_regex ]]; then
         str_var="tcp: udp: sctp: udplite: icmp: icmp6:"
         # add the services
         COMPREPLY+=( $( compgen -P "$str_lprefix" -W \
-            '$str_var $(_ipset_get_services -p tcp)' -- "$lcur" ) )
+            '$str_var $(_ipset_get_services)' -- "$lcur" ) )
         # add the protocols
         COMPREPLY+=( $( compgen -P "$str_lprefix" -S ":0$str_suffix" -W \
             '$(_ipset_get_protocols)' -- "$lcur" ) )
@@ -1396,7 +1393,7 @@ elif ((cword == action_index+2)) && [[ $str_setname = $prev ]]; then
                 elif [[ ${_IPSET_COMPL_TEST_MODE} = spec ]]; then
                     if ((got_bp_proto)); then # supported since ipset v6.20
                         COMPREPLY=( $(compgen -W \
-							'tcp: udp: $(_ipset_get_services -p "$str_prefix")' -- "$str_tmp" ) )
+                            'tcp: udp: $(_ipset_get_services -p "$str_prefix")' -- "$str_tmp" ) )
                         [[ ${COMPREPLY[*]} = @(tcp|udp): ]] && compopt -o nospace
                         _ipset_colon_ltrim "$cur"
                     else # only tcp services prior to ipset v6.20
@@ -1406,7 +1403,7 @@ elif ((cword == action_index+2)) && [[ $str_setname = $prev ]]; then
                 else
                     if ((got_bp_proto)); then # supported since ipset v6.20
                         COMPREPLY=( $(compgen -W \
-							'tcp: udp: $(_ipset_get_services -p "$str_prefix")' -- "$str_tmp" ) )
+                            'tcp: udp: $(_ipset_get_services -p "$str_prefix")' -- "$str_tmp" ) )
                         [[ ${COMPREPLY[*]} = @(tcp|udp): ]] && compopt -o nospace
                         _ipset_colon_ltrim "$cur"
                     else # only tcp services prior to ipset v6.20
