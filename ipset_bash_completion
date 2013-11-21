@@ -295,6 +295,35 @@ while read -r str_name rest; do
 done < /etc/protocols
 }
 
+_ipset_get_svnum() {
+# find service num to set offset
+local str_name str_num str_p=all rest
+local _str_p _str_o=""
+while (($#)); do
+    if [[ $1 = -p ]]; then
+        _str_p="${2:-all}"
+        shift
+    elif [[ $1 = -o && ${2:-"-no"} != -* ]]; then
+        # second part of range will have offset = first_part_of_range+1
+        _str_o="$2"
+        shift
+    fi
+    shift
+done
+if [[ $_str_o && $_str_o != +([[:digit:]]) ]]; then
+    while read str_name str_num rest; do
+        if [[ $str_name = *([[:blank:]])#* ]]; then continue
+        elif [[ $_str_p != all && ${str_num#*/} != $_str_p ]]; then
+            continue
+        fi
+        [[ $str_name = $_str_o ]] && printf "%s\n" ${str_num%/*} && return
+
+    done < /etc/services
+else
+    printf "%s\n" "$_str_o"
+fi
+}
+
 _ipset_get_services() {
 local str_offset="" str_name str_num str_p=all rest
 while (($#)); do
@@ -310,15 +339,10 @@ while (($#)); do
 done
 # find service num to set offset
 if [[ $str_offset && $str_offset != +([[:digit:]]) ]]; then
-    while read str_name str_num rest; do
-        if [[ $str_name = *([[:blank:]])#* ]]; then continue
-        elif [[ $str_p != all && ${str_num#*/} != $str_p ]]; then
-            continue
-        fi
-        [[ $str_name = $str_offset ]] && str_offset=${str_num%/*} && break
-    done < /etc/services
-    [[ $str_offset = +([[:digit:]]) ]] || return 0
+    str_offset=$(_ipset_get_svnum -p "$str_p" -o "$str_offset")
+    [[ $str_offset = +([[:digit:]]) ]] || str_offset="" # we failed
 fi
+# identify and print the services
 while read -r str_name str_num rest; do
     if [[ $str_name = @(""|*([[:blank:]])#*) ]]; then continue
     elif [[ $str_p != all && ${str_num#*/} != $str_p ]]; then
@@ -1240,8 +1264,18 @@ elif ((cword == action_index+2)) && [[ $str_setname = $prev ]]; then
                     _ipset_get_members --names-only "$str_setname"
                     str_glob='?(tcp:|udp:)@([![]*-*|\[?*\]-*)'
                     if [[ $cur = $str_glob ]]; then
-                        str_var="${cur#?(tcp:|udp:)}"
-                        str_var="${str_var%%-*}"
+                        str_var="${cur#?(tcp:|udp:)}" # offset
+                        str_tmp="${cur%"$str_var"}" # proto
+                        # identify service number by name, to find the offset
+                        if [[ $str_var != +([[:digit:]]) ]]; then
+                            if [[ $str_var = \[+([![])\]-* ]]; then
+                                str_var="${str_var%%\]*}"
+                                str_var="${str_var#\[}"
+                            elif  [[ $str_var = *-* ]]; then
+                                str_var="${str_var%%-*}"
+                            fi
+                            str_var=$(_ipset_get_svnum -p "${str_tmp:-all}" -o "$str_var")
+                        fi
                         if [[ $str_var = +([[:digit:]]) ]]; then
                             for i in ${!arr_members[@]}; do
                                 ((${arr_members[i]} <= $str_var)) && \
