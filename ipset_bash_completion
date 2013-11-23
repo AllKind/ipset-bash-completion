@@ -1347,7 +1347,21 @@ elif ((cword == action_index+2)) && [[ $str_setname = $prev ]]; then
         ;;
         test)
             str_type=$(_ipset_get_set_type "$str_setname")
-            if [[ $str_type = hash:ip ]]; then
+            if [[ $str_type = bitmap:ip ]]; then
+                if [[ ${_IPSET_COMPL_TEST_MODE:=both} = members ]]; then
+                    _ipset_complete_elements "$cur" --no-range
+                    _ipset_colon_ltrim "$cur"
+                elif [[ ${_IPSET_COMPL_TEST_MODE} = spec ]]; then
+                    _ipset_complete_host_spec "$cur" --no-range --v4
+                    _ipset_colon_ltrim "$cur"
+                else
+                    _ipset_complete_elements "$cur" --no-range
+                    if ! _ipset_complete_host_spec "$cur" --no-range --v4; then
+                        COMPREPLY=()
+                    fi
+                    _ipset_colon_ltrim "$cur"
+                fi
+            elif [[ $str_type = hash:ip ]]; then
                 if [[ ${_IPSET_COMPL_TEST_MODE:=both} = members ]]; then
                     _ipset_complete_elements "$cur" --no-range
                     _ipset_colon_ltrim "$cur"
