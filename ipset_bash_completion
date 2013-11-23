@@ -388,13 +388,16 @@ while (($#)); do
     [[ $1 = --no-range ]] && no_range=1
     shift
 done
-if [[ $lcur = *-[[]+([!]]) ]]; then # incomplete range - host with dash
+if [[ $lcur = *-[[]+([!]]) ]]; then # incomplete range - host/port with dash
     str_lprefix="${lcur%\-[*}-"
     lcur="${lcur#"$str_lprefix"}"
-elif [[ $lcur = \[*\]-* ]]; then # first part of hostname range
+elif [[ $lcur = \[*\]-* ]]; then # first part of host/portname range
     str_lprefix="${lcur%\]-*}]-" lcur="${lcur##*\]-}"
 elif [[ $lcur = *-* ]]; then
     str_lprefix="${lcur%-*}-" lcur="${lcur##*-}"
+elif [[ $lcur =~ (tcp|udp):.* ]]; then # proto:port (bitmap:port)
+    str_lprefix="${BASH_REMATCH[1]}:" lcur="${lcur#*:}"
+    no_range=0  # workaround
 fi
 if [[ $str_lprefix ]]; then
     [[ $str_lprefix = */* ]] && return 1
