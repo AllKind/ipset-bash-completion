@@ -673,7 +673,7 @@ elif [[ $lcur =~ $str_regex ]]; then
         fi
         _ipset_colon_ltrim "${str_lprefix}"
         if ((${#COMPREPLY[@]} == 1)); then
-			if [[ $str_lprefix && $str_type != hash:@(ip|net),port,@(ip|net) ]]; then
+            if [[ $str_lprefix && $str_type != hash:@(ip|net),port,@(ip|net) ]]; then
                 compopt +o nospace
             fi
         fi
@@ -747,10 +747,36 @@ elif [[ $lcur = *,*,* && $str_type = hash:@(ip,port,@(ip|net)|net,port,net) ]]; 
     fi
     _ipset_colon_ltrim "$str_lprefix2$lcur2"
     if ((${#COMPREPLY[@]} == 1)); then
-		if [[ $str_type = hash:@(ip|net),port,net && \
+        if [[ $str_type = hash:@(ip|net),port,net && \
             ${COMPREPLY[*]##*,} != */* ]]
         then
             compopt -o nospace
+        fi
+    fi
+fi
+}
+
+_ipset_complete_netnet_spec() {
+local lcur="$1"
+if [[ $lcur = *,* ]]; then
+    str_lprefix="$lcur" lcur="${lcur#*,}"
+    str_lprefix="${str_lprefix%,*},"
+    _ipset_complete_host_spec "$lcur"
+    compopt -o nospace
+    COMPREPLY+=( $( compgen -P "$str_lprefix" -W '${COMPREPLY[@]}' -- "$lcur" ) )
+    if ((${#COMPREPLY[@]} == 1 )); then
+        str_glob='@(*/*|\[*\]-*|+([![])-*)'
+        [[ ${COMPREPLY[0]#*,} = $str_glob ]] && compopt +o nospace
+    fi
+else
+    _ipset_complete_host_spec "$lcur"
+    compopt -o nospace
+    if ((${#COMPREPLY[@]} == 1 )); then
+        str_glob='@(*/*|\[*\]-\[*\]|+([![])-+([![])|\[*\]-+([![])|+([![])-\[*\])'
+        if [[ ${COMPREPLY[0]} = $str_glob ]]; then
+            COMPREPLY=( ${COMPREPLY[*]}, )
+        else
+            COMPREPLY=( ${COMPREPLY[*]}- ${COMPREPLY[*]}, )
         fi
     fi
 fi
@@ -1142,30 +1168,8 @@ elif ((cword == action_index+2)) && [[ $str_setname = $prev ]]; then
                     _ipset_complete_hostport_spec "$cur"
                 ;;
                 hash:net,net)
-                    if [[ $cur = *,* ]]; then
-                        str_prefix="$cur" cur="${cur#*,}"
-                        str_prefix="${str_prefix%,*},"
-                        _ipset_complete_host_spec "$cur"
-                        compopt -o nospace
-                        COMPREPLY=( $( compgen -P "$str_prefix" -W '${COMPREPLY[@]}' -- "$cur" ) )
-                        if ((${#COMPREPLY[@]} == 1 )); then
-                            str_glob='@(*/*|\[*\]-*|+([![])-*)'
-                            [[ ${COMPREPLY[0]#*,} = $str_glob ]] && compopt +o nospace
-                        fi
-                        _ipset_colon_ltrim "$str_prefix$cur"
-                    else
-                        _ipset_complete_host_spec "$cur"
-                        compopt -o nospace
-                        if ((${#COMPREPLY[@]} == 1 )); then
-                            str_glob='@(*/*|\[*\]-\[*\]|+([![])-+([![])|\[*\]-+([![])|+([![])-\[*\])'
-                            if [[ ${COMPREPLY[0]} = $str_glob ]]; then
-                                COMPREPLY=( ${COMPREPLY[*]}, )
-                            else
-                                COMPREPLY=( ${COMPREPLY[*]}- ${COMPREPLY[*]}, )
-                            fi
-                        fi
-                        _ipset_colon_ltrim "$cur"
-                    fi
+                    _ipset_complete_netnet_spec "$cur"
+                    _ipset_colon_ltrim "$cur"
                 ;;
                 bitmap:ip,mac)
                     if [[ $cur = *,* ]]; then
@@ -1316,28 +1320,15 @@ elif ((cword == action_index+2)) && [[ $str_setname = $prev ]]; then
                     _ipset_colon_ltrim "$cur"
                 fi
             elif [[ $str_type = hash:net,net ]]; then
-                if [[ $cur = *,* ]]; then
-                    str_prefix="$cur" cur="${cur#*,}"
-                    str_prefix="${str_prefix%,*},"
-                    _ipset_complete_host_spec "$cur"
-                    compopt -o nospace
-                    COMPREPLY=( $( compgen -P "$str_prefix" -W '${COMPREPLY[@]}' -- "$cur" ) )
-                    if ((${#COMPREPLY[@]} == 1 )); then
-                        str_glob='@(*/*|\[*\]-*|+([![])-*)'
-                        [[ ${COMPREPLY[0]#*,} = $str_glob ]] && compopt +o nospace
-                    fi
-                    _ipset_colon_ltrim "$str_prefix$cur"
+                if [[ ${_IPSET_COMPL_DEL_MODE:=both} = members ]]; then
+                    _ipset_complete_elements "$cur"
+                    _ipset_colon_ltrim "$cur"
+                elif [[ ${_IPSET_COMPL_DEL_MODE} = spec ]]; then
+                    _ipset_complete_netnet_spec "$cur"
+                    _ipset_colon_ltrim "$cur"
                 else
-                    _ipset_complete_host_spec "$cur"
-                    compopt -o nospace
-                    if ((${#COMPREPLY[@]} == 1 )); then
-                        str_glob='@(*/*|\[*\]-\[*\]|+([![])-+([![])|\[*\]-+([![])|+([![])-\[*\])'
-                        if [[ ${COMPREPLY[0]} = $str_glob ]]; then
-                            COMPREPLY=( ${COMPREPLY[*]}, )
-                        else
-                            COMPREPLY=( ${COMPREPLY[*]}- ${COMPREPLY[*]}, )
-                        fi
-                    fi
+                    _ipset_complete_netnet_spec "$cur"
+                    _ipset_complete_elements "$cur"
                     _ipset_colon_ltrim "$cur"
                 fi
             elif [[ $str_type = hash:@(ip,port|ip,port,ip|ip,port,net|net,port|net,port,net) ]]
