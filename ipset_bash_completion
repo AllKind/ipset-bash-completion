@@ -1526,10 +1526,12 @@ elif ((cword >= action_index+4)); then # add options following
                 str_comment=""
             fi
             # validate option argument values
-            for ((x=$action_index+3; x < ${#words[@]}; x++)); do
-                [[ ${words[x]} = @(timeout|bytes|packets) && \
-                    ${words[x+1]} != @(+([[:digit:]])|0x+([[:xdigit:]])) ]] && return 0
-            done
+            if [[ ${_IPSET_VALIDATE_INPUT-1} ]]; then
+                for ((x=$action_index+3; x < ${#words[@]}; x++)); do
+                    [[ ${words[x]} = @(timeout|bytes|packets) && \
+                        ${words[x+1]} != @(+([[:digit:]])|0x+([[:xdigit:]])) ]] && return 0
+                done
+            fi
             case "$str_type" in
                 hash:*net*)
                     if [[ $prev != @(timeout|bytes|packets|comment) ]]; then
@@ -1558,28 +1560,31 @@ elif ((cword >= action_index+4)); then # add options following
             esac
         ;;
         create|n)
-            for ((x=$action_index+3; x < ${#words[@]}; x++)); do
-                if [[ ${words[x+1]} && ${words[x+1]} != $cur ]]; then
-                    case "${words[x]}" in # validate option argument values
-                        @(hashsize|timeout|size|maxelem))
-                            [[ ${words[x+1]} != @(+([[:digit:]])|0x+([[:xdigit:]])) ]] && return 0
-                        ;;
-                        family)
-                            [[ ${words[x+1]} != inet?(6) ]] && return 0
-                        ;;
-                        range)
-                            case "$str_type" in
-                                bitmap:port)
-                                    [[ ${words[x+1]} != *-* ]] && return 0
-                                ;;
-                                *)
-                                    [[ ${words[x+1]} != @(*-*|*/+([[:digit:]])) ]] && return 0
-                                ;;
-                            esac
-                        ;;
-                    esac
-                fi
-            done
+            # validate option argument values
+            if [[ ${_IPSET_VALIDATE_INPUT-1} ]]; then
+                for ((x=$action_index+3; x < ${#words[@]}; x++)); do
+                    if [[ ${words[x+1]} && ${words[x+1]} != $cur ]]; then
+                        case "${words[x]}" in
+                            @(hashsize|timeout|size|maxelem))
+                                [[ ${words[x+1]} != @(+([[:digit:]])|0x+([[:xdigit:]])) ]] && return 0
+                            ;;
+                            family)
+                                [[ ${words[x+1]} != inet?(6) ]] && return 0
+                            ;;
+                            range)
+                                case "$str_type" in
+                                    bitmap:port)
+                                        [[ ${words[x+1]} != *-* ]] && return 0
+                                    ;;
+                                    *)
+                                        [[ ${words[x+1]} != @(*-*|*/+([[:digit:]])) ]] && return 0
+                                    ;;
+                                esac
+                            ;;
+                        esac
+                    fi
+                done
+            fi
             case "${words[action_index+2]}" in # must be the set type
                 hash:*)
                     if [[ $prev = family ]]; then

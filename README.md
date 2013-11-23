@@ -106,7 +106,7 @@ the following way (description from bash-completion source):
 
 
 Also the environment variable **_IPSET_SSH_CONFIGS** controls which files are taken
-as ssh_config files, in order to retrieve the globl and user known_host files,
+as ssh_config files, in order to retrieve the global and user known_host files,
 which will be used for hostname completion.
 
 For all *net* type of sets, if hostname completion is attempted,
@@ -161,6 +161,16 @@ values such a port specification can possibly have.
 
 At any time completion on variable names (starting with '$' or '${'),
 or command substitution (starting with '$(') is available.
+
+---
+
+If the environment variable **_IPSET_VALIDATE_INPUT** is set to a non empty value
+validation of users input is disabled.
+
+---
+
+If the environment variable **_DEBUG_NF_COMPLETION** is defined (any value)
+debugging information is displayed.
 
 
 
