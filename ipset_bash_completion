@@ -1034,6 +1034,18 @@ fi
 #        return 0
 #    ;;
 #esac
+# catch variables and command substitution
+if [[ $cur == \$\(* ]]; then # command substitution
+    COMPREPLY=( $(compgen -c -P '$(' ${cur#??}) )
+    return 0
+elif [[ $cur == \$\{* ]]; then # variables with a leading `${'
+    COMPREPLY=( $(compgen -v -P '${' -S '}' ${cur#??}) )
+    return 0
+elif [[ $cur == \$* ]]; then # variables with a leading `$'
+    COMPREPLY=( $(compgen -v -P '$' ${cur#?} ) )
+    return 0
+fi
+
 case "$prev" in # depend on previous option
     -o|-output)
         # make sure it's not a filename named -o or -output
@@ -1700,15 +1712,6 @@ else
         restore flush rename e swap w help version' -- "$cur" ) )
     fi
 fi
-fi
-if ! ((${#COMPREPLY[@]})) && [[ $cur ]]; then # last exit brooklyn
-    if [[ $cur == \$\(* ]]; then # command substitution
-        COMPREPLY=( $(compgen -c -P '$(' ${cur#??}) )
-    elif [[ $cur == \$\{* ]]; then # variables with a leading `${'
-        COMPREPLY=( $(compgen -v -P '${' -S '}' ${cur#??}) )
-    elif [[ $1 == \$* ]]; then # variables with a leading `$'
-        COMPREPLY=( $(compgen -v -P '$' ${1#?} ) )
-    fi
 fi
 if [[ $_DEBUG_NF_COMPLETION ]]; then
     printf "COMPREPLY:\n"
