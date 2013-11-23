@@ -149,7 +149,7 @@ If the variable is unset mac addresses are fetched from arp cache,
 ---
 
 When adding elements to one of the following set types:
-**hash:ip,port hash:ip,port,ip hash:ip,port,net hash:net,port**
+**hash:ip,port hash:ip,port,ip hash:ip,port,net hash:net,port hash:net,port,net**
 and completion is attempted on the port specification,
 the list of possible completions may become quite long.
 Especially if no characters are given to match on.
