@@ -55,33 +55,6 @@ shopt -s extglob
 # Functions
 # -----------------------------------------------------------------
 
-_ipset_bash_default_compl() { # taken from examples - modified by me
-# call with the word to be completed as $1
-local t
-if [[ $1 == \$\(* ]]; then # command substitution
-    t=${1#??}
-    COMPREPLY=( $(compgen -c -P '$(' $t) )
-elif [[ $1 == \$\{* ]]; then # variables with a leading `${'
-    t=${1#??}
-    COMPREPLY=( $(compgen -v -P '${' -S '}' $t) )
-elif [[ $1 == \$* ]]; then # variables with a leading `$'
-    t=${1#?}
-    COMPREPLY=( $(compgen -v -P '$' $t ) )
-elif [[ $1 == *[*?[]* ]]; then # sh-style glob pattern
-    COMPREPLY=( $( compgen -G "$1" ) )
-    # ksh-style extended glob pattern - must be complete
-elif shopt -q extglob && [[ $1 == *[?*+\!@]\(*\)* ]]; then
-    COMPREPLY=( $( compgen -G "$1" ) )
-else # last fallback is filename completion
-    if ((got_bashcompl)); then
-        _filedir
-    else
-        compopt -o nospace
-        COMPREPLY=( $( compgen -f -- "$cur" ) )
-    fi
-fi
-}
-
 _ipset_colon_ltrim() {
 ((got_bashcompl)) || return 0
 __ltrim_colon_completions "$1"
@@ -757,6 +730,7 @@ fi
 }
 
 _ipset_complete_netnet_spec() {
+# complete hash:net,net sets
 local lcur="$1"
 if [[ $lcur = *,* ]]; then
     str_lprefix="$lcur" lcur="${lcur#*,}"
@@ -1727,8 +1701,14 @@ else
     fi
 fi
 fi
-if ! ((${#COMPREPLY[@]})); then # last exit brooklyn
-    [[ $cur ]] && _ipset_bash_default_compl "$cur"
+if ! ((${#COMPREPLY[@]})) && [[ $cur ]]; then # last exit brooklyn
+    if [[ $cur == \$\(* ]]; then # command substitution
+        COMPREPLY=( $(compgen -c -P '$(' ${cur#??}) )
+    elif [[ $cur == \$\{* ]]; then # variables with a leading `${'
+        COMPREPLY=( $(compgen -v -P '${' -S '}' ${cur#??}) )
+    elif [[ $1 == \$* ]]; then # variables with a leading `$'
+        COMPREPLY=( $(compgen -v -P '$' ${1#?} ) )
+    fi
 fi
 if [[ $_DEBUG_NF_COMPLETION ]]; then
     printf "COMPREPLY:\n"

@@ -160,8 +160,7 @@ values such a port specification can possibly have.
 ---
 
 At any time completion on variable names (starting with '$' or '${'),
-command substitution (starting with '$(') and file name [ext] globbing
-patterns is available.
+or command substitution (starting with '$(') is available.
 
 
 
