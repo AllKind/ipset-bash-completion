@@ -31,7 +31,7 @@ icmp[6] types and interface names when adding, deleting or testing elements.
 - Show and complete hostnames, when adding, deleting or testing elements.
 - Show and complete mac addresses.
 - Complete on filenames if the current option requires it.
-- Complete variable names, command substitution and globbing patterns.
+- Complete variable names and command substitution.
 - Do not complete if an invalid combination of options is used.
 - Do not complete if an invalid value of an option argument is detected.
 
@@ -161,6 +161,9 @@ values such a port specification can possibly have.
 
 At any time completion on variable names (starting with '$' or '${'),
 or command substitution (starting with '$(') is available.
+Using this with values validated by input validation, will stop further completion.
+In that case it is recommended to disable input validation (see below).
+
 
 ---
 
