@@ -505,6 +505,9 @@ fi
 _ipset_complete_host_spec() {
 local lcur="$1" str_lprefix="" str_lsuffix=""
 local -i no_range=0 v4_only=0
+if [[ $lcur = *,* && $str_type = hash:ip,mark ]]; then
+    return 0
+fi
 shift
 compopt -o nospace
 while (($#)); do
@@ -554,8 +557,8 @@ if [[ $str_lprefix ]]; then
     # if the prefix is defined add it to compreply
     COMPREPLY=( $( compgen -P "$str_lprefix" -W '${COMPREPLY[@]}' -- "$lcur" ) )
 else
-    # add networks the hash:net?(,net) types, or bitmap:ip for add/del action
-    if [[ $str_type = hash:net?(,net) ]] || \
+    # add networks for hash:net?(,net), hash:ip,mark, or bitmap:ip for add/del action
+    if [[ $str_type = hash:@(net?(,net)|ip,mark) ]] || \
         [[ $str_type = bitmap:*  && $str_action = @(add|create|del) ]]
     then
         COMPREPLY+=( $( compgen -W '$(_ipset_get_networks)' -- "$lcur" ) )
@@ -1148,7 +1151,7 @@ elif ((cword == action_index+2)) && [[ $str_setname = $prev ]]; then
                     _ipset_complete_host_spec "$cur" --v4
                     _ipset_colon_ltrim "$cur"
                 ;;
-                hash:ip|hash:net)
+                hash:ip|hash:net|hash:ip,mark)
                     _ipset_complete_host_spec "$cur"
                     _ipset_colon_ltrim "$cur"
                 ;;
@@ -1297,7 +1300,7 @@ elif ((cword == action_index+2)) && [[ $str_setname = $prev ]]; then
                     _ipset_complete_elements "$cur" --no-range
                     _ipset_colon_ltrim "$cur"
                 fi
-            elif [[ $str_type = hash:@(ip|net) ]]; then
+            elif [[ $str_type = hash:@(ip?(,mark)|net) ]]; then
                 str_prefix=""
                 if [[ ${_IPSET_COMPL_DEL_MODE:=both} = members ]]; then
                     _ipset_complete_elements "$cur"
@@ -1363,7 +1366,7 @@ elif ((cword == action_index+2)) && [[ $str_setname = $prev ]]; then
                         COMPREPLY=()
                     fi
                 fi
-            elif [[ $str_type = hash:ip ]]; then
+            elif [[ $str_type = hash:ip?(,mark) ]]; then
                 if [[ ${_IPSET_COMPL_TEST_MODE:=both} = members ]]; then
                     _ipset_complete_elements "$cur" --no-range
                     _ipset_colon_ltrim "$cur"
