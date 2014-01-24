@@ -566,8 +566,8 @@ else
 fi
 if ((${#COMPREPLY[@]} == 1)); then
     if [[ $str_lprefix ]]; then
-        # we can add a space, if it's a range (but not with hash:net,net)
-        if [[ $str_type != hash:net,net ]]; then
+        # we can add a space, if it's a range (not with hash:net,net or hash:ip,mark)
+		if [[ $str_type != hash:@(net,net|ip,mark) ]]; then
             compopt +o nospace
         fi
     fi
