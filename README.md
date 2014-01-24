@@ -109,7 +109,7 @@ Also the environment variable **_IPSET_SSH_CONFIGS** controls which files are ta
 as ssh_config files, in order to retrieve the global and user known_host files,
 which will be used for hostname completion.
 
-For all *net* type of sets, if hostname completion is attempted,
+For all *net* type of sets and the hash:ip,mark set type, if hostname completion is attempted,
 if the environment variable **_IPSET_COMP_NETWORKS** is set to a non-empty value,
 networks are retrieved from /etc/networks.
 
