@@ -1521,7 +1521,7 @@ elif ((cword == action_index+3)) && [[ $cur != -* ]]; then
     esac
 elif ((cword == action_index+3)) && [[ $cur = -* ]]; then
     _ipset_get_options
-elif ((cword == action_index+4)) && [[ $cur = -* ]]; then
+elif ((cword >= action_index+4)) && [[ $cur = -* ]]; then
     if [[ $prev != @(timeout|hashsize|size|family|maxelem|range|netmask|before|after|bytes|packets|comment) ]]
     then _ipset_get_options
 #        return 0
