@@ -201,7 +201,7 @@ else
         str_list='- ${arr_opts[@]}'
     fi
 fi
-COMPREPLY=( $( compgen -W "- $str_list" -- "$cur" ) )
+COMPREPLY=( $( compgen -W "$str_list" -- "$cur" ) )
 ((${#COMPREPLY[@]})) || return 0
 
 # post process the reply
