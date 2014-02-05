@@ -180,6 +180,8 @@ debugging information is displayed.
 Compatibility
 =============
 
+Compatible with ipset versions 6+.
+
 Tested with ipset v6.20.1.
 
 bash v4+ is required.
