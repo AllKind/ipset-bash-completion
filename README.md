@@ -29,11 +29,12 @@ Providing some kind of interactive help.
 - Show and complete services (also named port ranges), protocols,
 icmp[6] types and interface names when adding, deleting or testing elements.
 - Show and complete hostnames, when adding, deleting or testing elements.
-- Show and complete mac addresses.
+- Show and complete ip and mac addresses (dynamically and from file).
 - Complete on filenames if the current option requires it.
 - Complete variable names and command substitution.
 - Do not complete if an invalid combination of options is used.
 - Do not complete if an invalid value of an option argument is detected.
+- Environment variables allow to modify completion behaviour.
 
 
 Installation
