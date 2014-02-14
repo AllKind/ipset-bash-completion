@@ -1561,7 +1561,7 @@ elif ((cword >= action_index+4)); then # add all following non-hyphen options
             if [[ ${_IPSET_VALIDATE_INPUT-1} ]]; then
                 for ((x=$action_index+3; x < ${#words[@]}; x++)); do
                     [[ ${words[x]} = @(timeout|bytes|packets) && \
-                        ${words[x+1]} != @(+([[:digit:]])|0x+([[:xdigit:]])) ]] && return 0
+                        ${words[x+1]} != @(+([[:digit:]])|0[xX]+([[:xdigit:]])) ]] && return 0
                 done
             fi
             case "$str_type" in
@@ -1598,7 +1598,7 @@ elif ((cword >= action_index+4)); then # add all following non-hyphen options
                     if [[ ${words[x+1]} && ${words[x+1]} != $cur ]]; then
                         case "${words[x]}" in
                             @(hashsize|timeout|size|maxelem|markmask))
-                                [[ ${words[x+1]} != @(+([[:digit:]])|0x+([[:xdigit:]])) ]] && return 0
+                                [[ ${words[x+1]} != @(+([[:digit:]])|0[xX]+([[:xdigit:]])) ]] && return 0
                             ;;
                             family)
                                 [[ ${words[x+1]} != inet?(6) ]] && return 0
