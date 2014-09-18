@@ -1579,13 +1579,13 @@ elif ((cword >= action_index+4)); then # add all following non-hyphen options
                     if [[ ${words[x]} = @(timeout|bytes|packets) ]]; then
                         ${words[x+1]} = @(+([[:digit:]])|0[xX]+([[:xdigit:]])) ]] || return 0
                     elif [[ ${words[x]} = skbmark ]]; then
-                        [[ ${words[x+1]} = 0[xX]+([[:xdigit:]])?(0[xX]+([[:xdigit:]])) ]] || return 0
+                        [[ ${words[x+1]} = 0[xX]+([[:xdigit:]])?(/0[xX]+([[:xdigit:]])) ]] || return 0
                         (( ${words[x+1]%/*} >= 0 && ${words[x+1]%/*} <= 0xFFFFFFFF )) || return 0
                         (( ${words[x+1]#*/} >= 0 && ${words[x+1]#*/} <= 0xFFFFFFFF )) || return 0
                     elif [[ ${words[x]} = skbprio ]]; then
                         [[ ${words[x+1]} = +([[:xdigit:]]):?(+([[:xdigit:]])) ]] || return 0
                     elif [[ ${words[x]} = skbqueue ]]; then
-                        [[ ${words[x+1]} != +([[:digit:]]) ]] && return 0
+                        [[ ${words[x+1]} = +([[:digit:]]) ]] || return 0
                     fi
                 done
             fi
