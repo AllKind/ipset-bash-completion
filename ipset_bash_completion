@@ -1655,7 +1655,7 @@ elif ((cword >= action_index+4)); then # add all following non-hyphen options
                             -- "$cur" ) )
                     elif [[ $prev != @(hashsize|timeout|maxelem|markmask) ]]; then
                         COMPREPLY=( $( compgen -W \
-                            '$(_ipset_dedupe_cmd_opts family hashsize timeout maxelem $str_counters $str_markmask $str_comment $str_forceadd)' \
+                            '$(_ipset_dedupe_cmd_opts family hashsize timeout maxelem $str_counters $str_markmask $str_comment $str_forceadd $str_skbinfo)' \
                             -- "$cur" ) )
                     fi
                 ;;
@@ -1666,28 +1666,28 @@ elif ((cword >= action_index+4)); then # add all following non-hyphen options
                             -- "$cur" ) )
                     elif [[ $prev != @(hashsize|timeout|maxelem) ]]; then
                         COMPREPLY=( $( compgen -W \
-                            '$(_ipset_dedupe_cmd_opts family hashsize timeout maxelem $str_counters $str_comment $str_forceadd)' \
+                            '$(_ipset_dedupe_cmd_opts family hashsize timeout maxelem $str_counters $str_comment $str_forceadd $str_skbinfo)' \
                             -- "$cur" ) )
                     fi
                 ;;
                 bitmap:ip)
                     if [[ $prev != @(range|netmask|timeout) ]]; then
                         COMPREPLY=( $( compgen -W \
-                            '$(_ipset_dedupe_cmd_opts range netmask timeout $str_counters $str_comment)' \
+                            '$(_ipset_dedupe_cmd_opts range netmask timeout $str_counters $str_comment $str_skbinfo)' \
                             -- "$cur" ) )
                     fi
                 ;;
                 bitmap:!(ip)?*)
                     if [[ $prev != @(range|timeout) ]]; then
                         COMPREPLY=( $( compgen -W \
-                            '$(_ipset_dedupe_cmd_opts range timeout $str_counters $str_comment)' \
+                            '$(_ipset_dedupe_cmd_opts range timeout $str_counters $str_comment $str_skbinfo)' \
                             -- "$cur" ) )
                     fi
                 ;;
                 list:*)
                     if [[ $prev != @(size|timeout) ]]; then
                         COMPREPLY=( $( compgen -W \
-                            '$(_ipset_dedupe_cmd_opts size timeout $str_counters $str_comment)' \
+                            '$(_ipset_dedupe_cmd_opts size timeout $str_counters $str_comment $str_skbinfo)' \
                             -- "$cur" ) )
                     fi
                 ;;
