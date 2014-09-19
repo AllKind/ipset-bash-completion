@@ -765,6 +765,47 @@ else
 fi
 }
 
+_ipset_complete_mac_spec() {
+local lcur="$1" mac rest a b addr str_tmp
+local str_regex='^([[:xdigit:]]{2})(:[[:xdigit:]]{2}){5}$'
+local -i x=y=0
+if [[ ${_IPSET_MAC_COMPL_MODE:=both} = both ]]; then
+    x=1 y=1
+elif [[ $_IPSET_MAC_COMPL_MODE = file ]]; then
+    x=1
+elif [[ $_IPSET_MAC_COMPL_MODE = system ]]; then
+    y=1
+fi
+if ((x)); then
+    if [[ $_IPSET_MACLIST_FILE && -r $_IPSET_MACLIST_FILE ]]; then
+        # if a file with mac addresses is in env var, load em
+        while read -r mac rest; do
+            [[ $mac = *([[:blank:]])\#* ]] && continue
+            mac="${mac//\#*/}"
+            [[ $mac =~ $str_regex ]] && printf "%s\n" "$mac"
+        done < "${_IPSET_MACLIST_FILE}"
+    fi
+fi
+if ((y)); then
+    # read arp cache, addresses of local interfaces and /etc/ethers
+    str_tmp=$(while read a b addr rest; do
+        [[ $addr =~ $str_regex ]] && printf "%s\n" "$addr"
+        done < <(PATH=$PATH:/sbin command arp -n 2>/dev/null))
+    str_tmp+=" $(while read -r; do
+        [[ $REPLY = *link/loopback* ]] && continue
+        REPLY=${REPLY#*link/*+([[:blank:]])}
+        REPLY=${REPLY%+([[:blank:]])brd*}
+        [[ $REPLY =~ $str_regex ]] && printf "%s\n" "$REPLY"
+        done < <(PATH=$PATH:/sbin command ip -o link show 2>/dev/null))"
+    if [[ -r /etc/ethers ]]; then
+        str_tmp+=" $(while read -r addr rest; do
+            [[ $addr =~ $str_regex ]] && printf "%s\n" "$addr"
+            done < /etc/ethers)"
+    fi
+    printf "%s\n" "$str_tmp" 
+fi
+}
+
 # -----------------------------------------------------------------
 # Main
 # -----------------------------------------------------------------
@@ -1183,53 +1224,17 @@ elif ((cword == action_index+2)) && [[ $str_setname = $prev ]]; then
                     _ipset_complete_netnet_spec "$cur"
                     _ipset_colon_ltrim "$cur"
                 ;;
+                hash:mac)
+                    COMPREPLY=( $( compgen -W '$(_ipset_complete_mac_spec)' -- "$cur" ) )
+                    _ipset_colon_ltrim "$cur"
+                ;;
                 bitmap:ip,mac)
                     if [[ $cur = *,* ]]; then
                         str_prefix="$cur" cur="${cur#*,}"
                         str_prefix="${str_prefix%$cur}"
-                        str_regex='^([[:xdigit:]]{2})(:[[:xdigit:]]{2}){5}$'
-                        x=0 y=0
-                        if [[ ${_IPSET_MAC_COMPL_MODE:=both} = both ]]; then
-                            x=1 y=1
-                        elif [[ $_IPSET_MAC_COMPL_MODE = file ]]; then
-                            x=1
-                        elif [[ $_IPSET_MAC_COMPL_MODE = system ]]; then
-                            y=1
-                        fi
-                        if ((x)); then
-                            if [[ $_IPSET_MACLIST_FILE && -r $_IPSET_MACLIST_FILE ]]
-                            then
-                                # if a file with mac addresses is in env var, load em
-                                str_tmp=$(while read -r mac rest; do
-                                    [[ $mac = *([[:blank:]])\#* ]] && continue
-                                    mac="${mac//\#*/}"
-                                    [[ $mac =~ $str_regex ]] && printf "%s\n" "$mac"
-                                    done < "${_IPSET_MACLIST_FILE}")
-                                COMPREPLY=( $( compgen -P "$str_prefix" \
-                                    -W "$str_tmp" -- "$cur" ) )
-                                _ipset_colon_ltrim "$str_prefix$cur"
-                            fi
-                        fi
-                        if ((y)); then
-                            # read arp cache, addresses of local interfaces and /etc/ethers
-                            str_tmp=$(while read a b addr rest; do
-                                [[ $addr =~ $str_regex ]] && printf "%s\n" "$addr"
-                                done < <(PATH=$PATH:/sbin command arp -n 2>/dev/null))
-                            str_tmp+=" $(while read -r; do
-                                [[ $REPLY = *link/loopback* ]] && continue
-                                REPLY=${REPLY#*link/*+([[:blank:]])}
-                                REPLY=${REPLY%+([[:blank:]])brd*}
-                                [[ $REPLY =~ $str_regex ]] && printf "%s\n" "$REPLY"
-                                done < <(PATH=$PATH:/sbin command ip -o link show 2>/dev/null))"
-                            if [[ -r /etc/ethers ]]; then
-                                str_tmp+=" $(while read -r addr rest; do
-                                    [[ $addr =~ $str_regex ]] && printf "%s\n" "$addr"
-                                    done < /etc/ethers)"
-                            fi
-                            COMPREPLY+=( $( compgen -P "$str_prefix" -W "$str_tmp" \
-                                -- "$cur" ) )
-                            _ipset_colon_ltrim "$str_prefix$cur"
-                        fi
+                        COMPREPLY+=( $( compgen -P "$str_prefix" -W '$(_ipset_complete_mac_spec)' \
+                            -- "$cur" ) )
+                        _ipset_colon_ltrim "$str_prefix$cur"
                     else
                         compopt -o nospace
                         _ipset_complete_host_spec "$cur" --v4 --no-range
