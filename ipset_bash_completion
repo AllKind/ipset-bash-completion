@@ -1582,11 +1582,14 @@ elif ((cword >= action_index+4)); then # add all following non-hyphen options
             if [[ ${_IPSET_VALIDATE_INPUT-1} ]]; then
                 for ((x=$action_index+3; x < ${#words[@]}; x++)); do
                     if [[ ${words[x]} = @(timeout|bytes|packets) ]]; then
-                        ${words[x+1]} = @(+([[:digit:]])|0[xX]+([[:xdigit:]])) ]] || return 0
+                        [[ ${words[x+1]} = @(+([[:digit:]])|0[xX]+([[:xdigit:]])) ]] || return 0
                     elif [[ ${words[x]} = skbmark ]]; then
-                        [[ ${words[x+1]} = 0[xX]+([[:xdigit:]])?(/0[xX]+([[:xdigit:]])) ]] || return 0
-                        (( ${words[x+1]%/*} >= 0 && ${words[x+1]%/*} <= 0xFFFFFFFF )) || return 0
-                        (( ${words[x+1]#*/} >= 0 && ${words[x+1]#*/} <= 0xFFFFFFFF )) || return 0
+                        if [[ ${words[x+1]} = 0[xX]+([[:xdigit:]])?(/0[xX]+([[:xdigit:]])) ]]; then
+                            (( ${words[x+1]%/*} >= 0 && ${words[x+1]%/*} <= 0xFFFFFFFF )) || return 0
+                            (( ${words[x+1]#*/} >= 0 && ${words[x+1]#*/} <= 0xFFFFFFFF )) || return 0
+                        else
+                            return 0
+                        fi
                     elif [[ ${words[x]} = skbprio ]]; then
                         [[ ${words[x+1]} = +([[:xdigit:]]):?(+([[:xdigit:]])) ]] || return 0
                     elif [[ ${words[x]} = skbqueue ]]; then
