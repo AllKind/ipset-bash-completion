@@ -183,7 +183,7 @@ Compatibility
 
 Compatible with ipset versions 6+.
 
-Tested with ipset v6.20.1.
+Tested with ipset v6.20.1, v6.22.
 
 bash v4+ is required.
 
