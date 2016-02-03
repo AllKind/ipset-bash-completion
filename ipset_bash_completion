@@ -819,7 +819,7 @@ local -i i=x=y=0
 local -i got_bashcompl=got_action=action_index=order_index=set_has_timeout=0
 local -i got_bp_proto=0
 local -i ignore_errors=use_file=names_only=headers_only=save_format=res_sort=0
-local arr_sets=() arr_types=() arr_members=() arr_unknown_opts=()
+local arr_sets=() arr_types=() arr_members=()
 local arr_dupe_cmd_opts=() arr_used_opts=() arr_tmp=()
 local arr_opts=(
 "-! -exist"
