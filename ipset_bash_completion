@@ -1,4 +1,3 @@
-p
 #!/bin/bash
 
 # -----------------------------------------------------------------
@@ -956,9 +955,7 @@ fi
 if ! declare -F _ipset_known_hosts &>/dev/null; then
 eval '_ipset_known_hosts() { '$(declare -f _known_hosts_real | grep -v __ltrim_colon_completions | grep -Ev "^_known_hosts_real.*$" | grep -Ev "^(\{|\})")'; }'
 fi
-fi
 
-#_DEBUG_NF_COMPLETION=Y
 if [[ $_DEBUG_NF_COMPLETION ]]; then
     printf "\nCOMP_WORDBREAKS: <%s>\n" "$COMP_WORDBREAKS"
     printf "COMP_LINE: <%s>\n" "$COMP_LINE"
@@ -1067,13 +1064,6 @@ elif ((ignore_errors)); then
     fi
 fi
 
-#case "$cur" in # depend on current
-#    \<|\>) # redirection operator
-#        compopt -o nospace
-#        COMPREPLY=( $( compgen -f ) ) # no $cur, so completion starts without space after redirection
-#        return 0
-#    ;;
-#esac
 # catch variables and command substitution
 if [[ $cur == \$\(* ]]; then # command substitution
     COMPREPLY=( $(compgen -c -P '$(' ${cur#??}) )
