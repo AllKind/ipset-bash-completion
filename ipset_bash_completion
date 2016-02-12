@@ -59,7 +59,7 @@ shopt -s extglob
 
 _ipset_is_set() {
 local -i idx
-((${#arr_sets[@]})) || arr_sets=( $(ipset list -n) )
+((${#arr_sets[@]})) || arr_sets=( $( ( ipset list -n ) 2>/dev/null ) )
 for idx in ${!arr_sets[@]}; do
     if [[ ${arr_sets[idx]} = $1 ]]; then
         return 0
@@ -72,13 +72,13 @@ _ipset_get_set_type() {
 local n d
 while read n d; do
     [[ $n = Type: ]] && printf '%s\n' $d && break
-done < <(ipset -t list "$1" 2>/dev/null)
+done < <( ( ipset -t list "$1" ) 2>/dev/null)
 }
 
 _ipset_set_has_option() {
 while read -r; do
     [[ $REPLY = Header:*$1* ]] && return 0
-done < <(ipset -t list "$2")
+done < <( ( ipset -t list "$2" ) 2>/dev/null)
 return 1
 }
 
@@ -92,7 +92,7 @@ while read -r; do
         set -- $REPLY
         arr_types+=("$1")
     fi
-done < <(ipset help)
+done < <( ( ipset help ) 2>/dev/null )
 for i in ${!arr_types[@]}; do # remove dupe entries
     for ((x=i+1; x < ${#arr_types[@]}; x++)); do
         if [[ ${arr_types[i]} = ${arr_types[x]} ]]; then
@@ -116,7 +116,7 @@ while read -r; do
     else
         arr_members+=("$REPLY")
     fi
-done < <(ipset list "$1" 2>/dev/null)
+done < <( ( ipset list "$1" ) 2>/dev/null)
 }
 
 _ipset_get_set_family() {
@@ -124,7 +124,7 @@ while read -r; do
     [[ $REPLY = Header:*"family inet6"* ]] && printf "v6\n" && return
     [[ $REPLY = Header:*"family inet "* ]] && printf "v4\n" && return
     [[ $REPLY = Header:*"range "*.*.*.* ]] && printf "v4\n" && return
-done < <(ipset -t list "$1")
+done < <( ( ipset -t list "$1" ) 2>/dev/null)
 }
 
 _ipset_dedupe_cmd_opts() {
@@ -323,7 +323,7 @@ _ipset_get_ifnames() {
 while read -r; do
     REPLY="${REPLY#*: }"
     printf "%s\n" ${REPLY%%:*}
-done < <(PATH=${PATH}:/sbin command ip -o link show)
+done < <(PATH=${PATH}:/sbin ( command ip -o link show ) 2>/dev/null)
 }
 
 _ipset_get_iplist() {
@@ -888,12 +888,30 @@ redirect
 COMPREPLY=()
 
 # ipset version check 6.x upwards (to v?) is supported
-ips_version="$(ipset version)"
-ips_version="${ips_version#ipset v}"
-ips_version="${ips_version%,+([[:blank:]])protocol*}"
-read -a ips_version <<< ${ips_version//./ }
-[[ ${ips_version[0]} = +([[:digit:]]) ]] || return 1
+
+# All calls of ipset should be done in a subshell with stderr
+# pointing to /dev/null, to avoid printing of
+# `-bash command ipset not found' errors
+
+i=0 # for safety
+if ((UID != 0)); then # not root user
+    ipset version &>/dev/null # can we retrieve the version?
+    i=$?
+fi
+if ((i == 0)); then
+    ips_version="$(ipset version)"
+    ips_version="${ips_version#ipset v}"
+    ips_version="${ips_version%,+([[:blank:]])protocol*}"
+    read -a ips_version <<< ${ips_version//./ }
+    [[ ${ips_version[0]} = +([[:digit:]]) ]] || return 1
+else
+    # assume we have no permissions to run ipset
+    # set version to 6.22 = show all features
+    # though many things won't work, as of missing permissions
+    ips_version=( 6 22 )
+fi
 ((ips_version[0] < 6)) && return 1
+
 
 # ipset -ge v6.19 has counters flag
 # ipset -ge v6.20 has comment flag
@@ -926,6 +944,7 @@ elif ((ips_version[0] == 6)); then
         str_bp_counters="bytes packets"
     fi
 else
+    # ipset versions -lt 6 are not supported
     return 0
 fi
 
@@ -1102,7 +1121,7 @@ if ((cword == action_index+1)) && [[ $str_action = $prev ]]; then
         COMPREPLY=( $( compgen -W '${arr_types[@]}' -- "$cur" ) )
         __ltrim_colon_completions "$cur"
     elif [[ $str_action = @(add|del|rename|e|swap|w|test) ]]; then
-        COMPREPLY=( $( compgen -W '$(ipset list -n)' -- "$cur" ) )
+        COMPREPLY=( $( compgen -W '$( ( ipset list -n ) 2>/dev/null )' -- "$cur" ) )
         __ltrim_colon_completions "$cur"
     elif [[ $str_action = @(list|flush|save|destroy|x) ]]; then
         # we don't know if its an option request, could also be a set
@@ -1114,7 +1133,7 @@ if ((cword == action_index+1)) && [[ $str_action = $prev ]]; then
                 __ltrim_colon_completions "$cur"
             fi
         else
-            COMPREPLY=( $( compgen -W '$(ipset list -n)' -- "$cur" ) )
+            COMPREPLY=( $( compgen -W '$( ( ipset list -n ) 2>/dev/null )' -- "$cur" ) )
             __ltrim_colon_completions "$cur"
         fi
     elif [[ $str_action = restore ]]; then
@@ -1136,7 +1155,7 @@ elif ((cword == action_index+2)) && [[ $str_setname = $prev ]]; then
         COMPREPLY=( $( compgen -W '${arr_types[@]}' -- "$cur" ) )
         __ltrim_colon_completions "$cur"
     elif [[ $str_action = @(swap|w) ]]; then # list two sets
-        COMPREPLY=( $( compgen -W '$(ipset list -n)' -- "$cur" ) )
+        COMPREPLY=( $( compgen -W '$( ( ipset list -n ) 2>/dev/null )' -- "$cur" ) )
         for i in ${!COMPREPLY[@]}; do # remove the dupe setname from the list
             [[ ${COMPREPLY[i]} = $str_setname ]] && unset COMPREPLY[i] && break
         done
@@ -1179,7 +1198,7 @@ elif ((cword == action_index+2)) && [[ $str_setname = $prev ]]; then
             _ipset_complete_portrange "$cur"
         elif [[ $str_type = list:* ]]; then
             # show sets if the set to add is of type list:set
-            arr_tmp=() arr_sets=( $(ipset list -n) )
+            arr_tmp=() arr_sets=( $( ( ipset list -n ) 2>/dev/null ) )
             _ipset_get_members --names-only "$str_setname"
             for x in ${!arr_sets[@]}; do
                 [[ ${arr_sets[x]} = $str_setname ]] && continue
