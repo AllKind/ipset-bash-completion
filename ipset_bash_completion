@@ -84,22 +84,20 @@ return 1
 
 _ipset_get_supported_types() {
 ((${#arr_types[@]})) && return
-local -i i=0
+local -i i=0 x
 while read -r; do
     [[ $REPLY = "Supported set types:"* ]] && ((!i)) && i=1 && continue
     ((i)) || continue
     if [[ $REPLY = *:* ]]; then
         set -- $REPLY
-        arr_types+=("$1")
+		for x in ${!arr_types[@]}; do # check if already registered
+			if [[ $1 = ${arr_types[x]} ]]; then
+				continue 2
+			fi
+		done
+        arr_types+=("$1") # register type
     fi
 done < <( ( ipset help ) 2>/dev/null )
-for i in ${!arr_types[@]}; do # remove dupe entries
-    for ((x=i+1; x < ${#arr_types[@]}; x++)); do
-        if [[ ${arr_types[i]} = ${arr_types[x]} ]]; then
-            unset arr_types[x]
-        fi
-    done
-done
 }
 
 _ipset_get_members() {
