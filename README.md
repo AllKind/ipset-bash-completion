@@ -158,6 +158,7 @@ if the environment variable **_IPSET_COMP_NETWORKS** is set to a non-empty value
 networks are retrieved from /etc/networks.
 Means these two commands disable it:
 	_IPSET_COMP_NETWORKS=
+or
 	_IPSET_COMP_NETWORKS=""
 
 Also a list of ip addresses can be supplied using the environment variable
@@ -185,14 +186,14 @@ the list of possible completions (this is the default).
 
 ---
 
-When adding elements to a **bitmap:ip,mac** type of set,
+When completing on MAC addresses (bitmap:ip,mac, hash:mac type of set),
 the environment variable **_IPSET_MAC_COMPL_MODE** is queried to decide how to complete.
-If set to 'file' the **_IPSET_MACLIST_FILE** will be queried
+If set to 'file' the variable **_IPSET_MACLIST_FILE** will be queried
 for a file containing a list of mac addresses.
 The file should contain one mac address per line.
 Empty lines and comments (also after the address) are supported.
-If the variable is set to 'system' mac addresses are fetched from arp cache,
-/etc/ethers and the output of `ip link show`.
+If the variable **_IPSET_MAC_COMPL_MODE** is set to 'system' mac addresses are fetched
+from arp cache, /etc/ethers and the output of `ip link show`.
 If the variable is unset or set to 'both' (default) both methods are used).
 
 ---
