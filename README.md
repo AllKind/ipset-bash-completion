@@ -156,10 +156,7 @@ which will be used for hostname completion.
 For all *net* type of sets and the hash:ip,mark set type, if hostname completion is attempted,
 if the environment variable **_IPSET_COMP_NETWORKS** is set to a non-empty value,
 networks are retrieved from /etc/networks.
-Means these two commands disable it:
-	_IPSET_COMP_NETWORKS=
-or
-	_IPSET_COMP_NETWORKS=""
+Means these two commands disable it: `_IPSET_COMP_NETWORKS=` or `_IPSET_COMP_NETWORKS=""`
 
 Also a list of ip addresses can be supplied using the environment variable
 **_IPSET_IPLIST_FILE**. Which should point to a file containing an ip address per line.
