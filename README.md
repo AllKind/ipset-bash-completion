@@ -33,7 +33,7 @@ icmp[6] types and interface names when adding, deleting or testing elements.
 - Complete on filenames if the current option requires it.
 - Complete variable names and command substitution.
 - Do not complete if an invalid combination of options is used.
-- Do not complete if an invalid value of an option argument is detected.
+- Optionally do not complete if an invalid value of an option argument is detected.
 - Environment variables allow to modify completion behaviour.
 
 
@@ -211,8 +211,8 @@ In that case it is recommended to disable input validation (see below).
 
 ---
 
-If the environment variable **_IPSET_VALIDATE_INPUT** is set to a non empty value
-validation of users input is disabled.
+If the environment variable **_IPSET_VALIDATE_INPUT** is defined and set to a non empty value
+validation of users input is enabled.
 
 ---
 
@@ -226,7 +226,7 @@ Compatibility
 
 Compatible with ipset versions 6+.
 
-Tested with ipset v6.20.1, v6.22.
+Tested with ipset v6.24, v6.27.
 
 bash v4+ is required.
 
