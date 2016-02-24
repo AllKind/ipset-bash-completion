@@ -92,6 +92,9 @@
 #
 # -----------------------------------------------------------------
 
+# at least bash 4 is required
+((${BASH_VERSINFO[0]} < 4)) && return 0
+
 shopt -s extglob
 
 # -----------------------------------------------------------------
@@ -920,9 +923,6 @@ neighbour-advertisement
 neigbour-advertisement
 redirect
 )
-
-# at least bash 4 is required
-((${BASH_VERSINFO[0]} < 4)) && return 0
 
 COMPREPLY=()
 
