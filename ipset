@@ -25,7 +25,7 @@
 # -----------------------------------------------------------------
 # Compatible with ipset versions: 6+
 # Tested with ipset versions:
-# 6.22
+# 6.27
 # -----------------------------------------------------------------
 # Requirements:
 #
@@ -58,8 +58,6 @@
 # For packages using GNU autotools the installation can be handled
 # for example like this in configure.ac:
 #
-p
-p
 #  PKG_CHECK_VAR(bashcompdir, [bash-completion], [completionsdir], ,
 #    bashcompdir="${sysconfdir}/bash_completion.d")
 #  AC_SUBST(bashcompdir)
