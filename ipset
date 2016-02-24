@@ -92,9 +92,6 @@
 #
 # -----------------------------------------------------------------
 
-# at least bash 4 is required
-((${BASH_VERSINFO[0]} < 4)) && return 0
-
 shopt -s extglob
 
 # -----------------------------------------------------------------
@@ -841,6 +838,8 @@ fi
 # -----------------------------------------------------------------
 
 _ipset_complete() {
+# at least bash 4 is required
+((${BASH_VERSINFO[0]} < 4)) && return 0
 local cur prev cword words ips_version
 local str_action str_setname str_type str_filename
 local str_glob str_regex str_prefix str_suffix
