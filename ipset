@@ -1002,8 +1002,12 @@ fi
 # just remove the __ltrim_colon_completions call
 # to avoid unwanted ltrim if we need to work with the list of hosts
 # ugly hack - gimme better ;p
-if ! declare -F _ipset_known_hosts &>/dev/null; then
-eval '_ipset_known_hosts() { '$(declare -f _known_hosts_real | grep -v __ltrim_colon_completions | grep -Ev "^_known_hosts_real.*$" | grep -Ev "^(\{|\})")'; }'
+if ((got_bashcompl)); then
+	if ! declare -F _ipset_known_hosts &>/dev/null; then
+	eval '_ipset_known_hosts() { '$(declare -f _known_hosts_real | \
+		grep -v __ltrim_colon_completions | \
+		grep -Ev "^_known_hosts_real.*$" | grep -Ev "^(\{|\})")'; }'
+	fi
 fi
 
 if [[ $_DEBUG_NF_COMPLETION ]]; then
