@@ -100,7 +100,7 @@ shopt -s extglob
 
 _ipset_is_set() {
 local -i idx
-((${#arr_sets[@]})) || arr_sets=( $( ( ipset list -n ) 2>/dev/null ) )
+((${#arr_sets[@]})) || arr_sets=( $( ( "${words[0]}" list -n ) 2>/dev/null ) )
 for idx in ${!arr_sets[@]}; do
     if [[ ${arr_sets[idx]} = $1 ]]; then
         return 0
@@ -113,13 +113,13 @@ _ipset_get_set_type() {
 local n d
 while read n d; do
     [[ $n = Type: ]] && printf '%s\n' $d && break
-done < <( ( ipset -t list "$1" ) 2>/dev/null)
+done < <( ( "${words[0]}" -t list "$1" ) 2>/dev/null)
 }
 
 _ipset_set_has_option() {
 while read -r; do
     [[ $REPLY = Header:*$1* ]] && return 0
-done < <( ( ipset -t list "$2" ) 2>/dev/null)
+done < <( ( "${words[0]}" -t list "$2" ) 2>/dev/null)
 return 1
 }
 
@@ -138,7 +138,7 @@ while read -r; do
 		done
         arr_types+=("$1") # register type
     fi
-done < <( ( ipset help ) 2>/dev/null )
+done < <( ( "${words[0]}" help ) 2>/dev/null )
 }
 
 _ipset_get_members() {
@@ -155,7 +155,7 @@ while read -r; do
     else
         arr_members+=("$REPLY")
     fi
-done < <( ( ipset list "$1" ) 2>/dev/null)
+done < <( ( "${words[0]}" list "$1" ) 2>/dev/null)
 }
 
 _ipset_get_set_family() {
@@ -163,7 +163,7 @@ while read -r; do
     [[ $REPLY = Header:*"family inet6"* ]] && printf "v6\n" && return
     [[ $REPLY = Header:*"family inet "* ]] && printf "v4\n" && return
     [[ $REPLY = Header:*"range "*.*.*.* ]] && printf "v4\n" && return
-done < <( ( ipset -t list "$1" ) 2>/dev/null)
+done < <( ( "${words[0]}" -t list "$1" ) 2>/dev/null)
 }
 
 _ipset_dedupe_cmd_opts() {
@@ -926,6 +926,17 @@ redirect
 
 COMPREPLY=()
 
+# expecting _get_comp_words_by_ref() to exist from bash_completion
+if declare -f _get_comp_words_by_ref &>/dev/null; then got_bashcompl=1
+    _get_comp_words_by_ref -n : cur prev cword words || return
+else got_bashcompl=0 # not so neat, but a workaround
+    COMP_WORDBREAKS="${COMP_WORDBREAKS//:/}"
+    cur="${COMP_WORDS[COMP_CWORD]}"
+    prev="${COMP_WORDS[COMP_CWORD-1]}"
+    cword=$COMP_CWORD
+    for i in ${!COMP_WORDS[@]}; do words[i]="${COMP_WORDS[i]}"; done
+fi
+
 # ipset version check 6.x upwards (to v?) is supported
 
 # All calls of ipset should be done in a subshell with stderr
@@ -934,11 +945,11 @@ COMPREPLY=()
 
 i=0 # for safety
 if ((UID != 0)); then # not root user
-    ipset version &>/dev/null # can we retrieve the version?
+    "${words[0]}" version &>/dev/null # can we retrieve the version?
     i=$?
 fi
 if ((i == 0)); then
-    ips_version="$(ipset version)"
+    ips_version="$("${words[0]}" version)"
     ips_version="${ips_version#ipset v}"
     ips_version="${ips_version%,+([[:blank:]])protocol*}"
     read -a ips_version <<< ${ips_version//./ }
@@ -985,17 +996,6 @@ elif ((ips_version[0] == 6)); then
 else
     # ipset versions -lt 6 are not supported
     return 0
-fi
-
-# expecting _get_comp_words_by_ref() to exist from bash_completion
-if declare -f _get_comp_words_by_ref &>/dev/null; then got_bashcompl=1
-    _get_comp_words_by_ref -n : cur prev cword words || return
-else got_bashcompl=0 # not so neat, but a workaround
-    COMP_WORDBREAKS="${COMP_WORDBREAKS//:/}"
-    cur="${COMP_WORDS[COMP_CWORD]}"
-    prev="${COMP_WORDS[COMP_CWORD-1]}"
-    cword=$COMP_CWORD
-    for i in ${!COMP_WORDS[@]}; do words[i]="${COMP_WORDS[i]}"; done
 fi
 
 # construct own known_hosts function from origin
@@ -1164,7 +1164,7 @@ if ((cword == action_index+1)) && [[ $str_action = $prev ]]; then
         COMPREPLY=( $( compgen -W '${arr_types[@]}' -- "$cur" ) )
         __ltrim_colon_completions "$cur"
     elif [[ $str_action = @(add|del|rename|e|swap|w|test) ]]; then
-        COMPREPLY=( $( compgen -W '$( ( ipset list -n ) 2>/dev/null )' -- "$cur" ) )
+        COMPREPLY=( $( compgen -W '$( ( "${words[0]}" list -n ) 2>/dev/null )' -- "$cur" ) )
         __ltrim_colon_completions "$cur"
     elif [[ $str_action = @(list|flush|save|destroy|x) ]]; then
         # we don't know if its an option request, could also be a set
@@ -1176,7 +1176,7 @@ if ((cword == action_index+1)) && [[ $str_action = $prev ]]; then
                 __ltrim_colon_completions "$cur"
             fi
         else
-            COMPREPLY=( $( compgen -W '$( ( ipset list -n ) 2>/dev/null )' -- "$cur" ) )
+            COMPREPLY=( $( compgen -W '$( ( "${words[0]}" list -n ) 2>/dev/null )' -- "$cur" ) )
             __ltrim_colon_completions "$cur"
         fi
     elif [[ $str_action = restore ]]; then
@@ -1198,7 +1198,7 @@ elif ((cword == action_index+2)) && [[ $str_setname = $prev ]]; then
         COMPREPLY=( $( compgen -W '${arr_types[@]}' -- "$cur" ) )
         __ltrim_colon_completions "$cur"
     elif [[ $str_action = @(swap|w) ]]; then # list two sets
-        COMPREPLY=( $( compgen -W '$( ( ipset list -n ) 2>/dev/null )' -- "$cur" ) )
+        COMPREPLY=( $( compgen -W '$( ( "${words[0]}" list -n ) 2>/dev/null )' -- "$cur" ) )
         for i in ${!COMPREPLY[@]}; do # remove the dupe setname from the list
             [[ ${COMPREPLY[i]} = $str_setname ]] && unset COMPREPLY[i] && break
         done
@@ -1241,7 +1241,7 @@ elif ((cword == action_index+2)) && [[ $str_setname = $prev ]]; then
             _ipset_complete_portrange "$cur"
         elif [[ $str_type = list:* ]]; then
             # show sets if the set to add is of type list:set
-            arr_tmp=() arr_sets=( $( ( ipset list -n ) 2>/dev/null ) )
+            arr_tmp=() arr_sets=( $( ( "${words[0]}" list -n ) 2>/dev/null ) )
             _ipset_get_members --names-only "$str_setname"
             for x in ${!arr_sets[@]}; do
                 [[ ${arr_sets[x]} = $str_setname ]] && continue
