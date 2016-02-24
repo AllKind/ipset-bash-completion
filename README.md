@@ -156,6 +156,9 @@ which will be used for hostname completion.
 For all *net* type of sets and the hash:ip,mark set type, if hostname completion is attempted,
 if the environment variable **_IPSET_COMP_NETWORKS** is set to a non-empty value,
 networks are retrieved from /etc/networks.
+Means these two commands disable it:
+	_IPSET_COMP_NETWORKS=
+	_IPSET_COMP_NETWORKS=""
 
 Also a list of ip addresses can be supplied using the environment variable
 **_IPSET_IPLIST_FILE**. Which should point to a file containing an ip address per line.
@@ -183,12 +186,14 @@ the list of possible completions (this is the default).
 ---
 
 When adding elements to a **bitmap:ip,mac** type of set,
-the environment variable **_IPSET_MACLIST_FILE** will be queried
+the environment variable **_IPSET_MAC_COMPL_MODE** is queried to decide how to complete.
+If set to 'file' the **_IPSET_MACLIST_FILE** will be queried
 for a file containing a list of mac addresses.
 The file should contain one mac address per line.
 Empty lines and comments (also after the address) are supported.
-If the variable is unset mac addresses are fetched from arp cache,
+If the variable is set to 'system' mac addresses are fetched from arp cache,
 /etc/ethers and the output of `ip link show`.
+If the variable is unset or set to 'both' (default) both methods are used).
 
 ---
 
