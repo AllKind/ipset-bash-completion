@@ -190,7 +190,7 @@ if ((got_action)); then
     if [[ $str_action = @(rename|e|swap|w|test|flush|destroy|x) ]]; then
         str_list='-q -quiet'
     elif [[ $str_action = save ]]; then
-        str_list='-f -file -q -quiet'
+        str_list='-f -file -q -quiet -o -output'
     elif [[ $str_action = @(create|n|add|del) ]]; then
         str_list='-! -exist -q -quiet'
     elif [[ $str_action = restore ]]; then
@@ -1716,7 +1716,9 @@ if [[ $cur = -* ]]; then # any option is requested
     _ipset_get_options
 else
     # we don't have the action yet, check options to display appropiate actions
-    if ((save_format || names_only || headers_only)); then
+    if ((save_format && !headers_only && !names_only)); then
+        COMPREPLY=( $( compgen -W 'list save' -- "$cur" ) )
+    elif ((save_format || names_only || headers_only)); then
         COMPREPLY=( $( compgen -W 'list' -- "$cur" ) )
     elif ((res_sort)); then
         COMPREPLY=( $( compgen -W 'list save' -- "$cur" ) )
